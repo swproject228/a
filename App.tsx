@@ -185,7 +185,9 @@ export default function App() {
     dispatch({ type: 'RESET_RESULTS' });
     dispatch({ type: 'SET_LEVEL', payload: level });
     
-    await Promise.all([0, 1, 2, 3].map(i => generateWithRetry(outfit, level, i)));
+    for (const i of [0, 1, 2, 3]) {
+      await generateWithRetry(outfit, level, i);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

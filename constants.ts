@@ -1,4 +1,3 @@
-
 import { NudityLevel, Outfit, Pose, AutoScenario, TransformationMode, Theme } from './types';
 
 export const NUDITY_LEVELS: { [key: number]: NudityLevel } = {
@@ -59,7 +58,7 @@ export const AUTO_SCENARIOS: { [key: string]: AutoScenario } = {
   beachProgression: { name: '🏖️ Пляжная прогрессия (1→2→3→4)', description: 'От одежды к купальнику и белью', steps: [ { level: 1, outfit: 0, delay: 0, context: 'beach scene' }, { level: 2, outfit: 0, delay: 3000, context: 'at the beach' }, { level: 3, outfit: 0, delay: 5000, context: 'beach sunset' }, { level: 4, outfit: 0, delay: 8000, context: 'after beach, indoors' } ], safety: '✅ Относительно безопасно' },
   direct: { name: '🚀 Прямой прыжок (1→5)', description: 'Моментальный переход к максимуму', steps: [ { level: 1, outfit: 0, delay: 0 }, { level: 5, outfit: 0, delay: 5000, extraProtection: true } ], safety: '🔥 Очень высокий риск' },
   lingerieProgression: { name: '💋 Белье прогрессия (3→4→5)', description: 'Переход от купальника к эротическому белью', steps: [ { level: 3, outfit: 2, delay: 0 }, { level: 4, outfit: 1, delay: 4000 }, { level: 4, outfit: 4, delay: 7000 }, { level: 5, outfit: 0, delay: 10000 } ], safety: '🔥 Высокий риск' },
-  seductionPath: { name: '🌹 Путь соблазнения (1→4→5)', description: 'От элегантности к страсти', steps: [ { level: 1, outfit: 4, delay: 0 }, { level: 4, outfit: 2, delay: 5000 }, { level: 4, outfit: 4, delay: 8000 }, { level: 5, outfit: 4, delay: 11000 } ], safety: '🔥 Очень высокий риск' }
+  seductionPath: { name: '🌹 Путь соблазнения (1→4→5)', description: 'От элегантности к страсти', steps: [ { level: 1, outfit: 4, delay: 0 }, { level: 4, outfit: 2, delay: 5000 }, { level: 4, outfit: 4, delay: 8000 }, { level: 5, outfit: 2, delay: 11000 } ], safety: '🔥 Очень высокий риск' }
 };
 
 export const PROTECTION_FRAMES = [
