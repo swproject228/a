@@ -9,10 +9,10 @@
     --void: #04050a;
     --ink: #ece6da;
     --dim: #a19dad;
-    --faint: #6d6a7a;
+    --faint: #9a97a6;
     --plasma: #ffb25b;
     --blueshift: #9cc2ff;
-    --panel: rgba(9, 10, 17, 0.66);
+    --panel: rgba(9, 10, 17, 0.86);
     --panel-solid: #0b0c14;
     --hair: rgba(236, 230, 218, 0.14);
     --font-display: "Unbounded", "Golos Text", system-ui, sans-serif;
@@ -26,6 +26,7 @@
     color-scheme: dark;
   }
 
+  *, *::before, *::after { box-sizing: border-box; }
   html, body { height: 100%; }
   [hidden] { display: none !important; }
   body {
@@ -63,7 +64,16 @@
   }
   .hud > * { pointer-events: auto; }
 
-  .masthead { grid-area: 1 / 1; max-width: 40ch; pointer-events: none; min-width: 0; }
+  .masthead { grid-area: 1 / 1; max-width: 40ch; pointer-events: none; min-width: 0; text-shadow: 0 0 2px rgba(4, 5, 10, 0.9), 0 1px 14px rgba(4, 5, 10, 0.85); }
+  .masthead { position: relative; }
+  .masthead::before {
+    content: "";
+    position: absolute;
+    inset: -70px -90px -60px -70px;
+    z-index: -1;
+    background: radial-gradient(closest-side, rgba(4, 5, 10, 0.78), rgba(4, 5, 10, 0));
+    pointer-events: none;
+  }
   .eyebrow {
     margin: 0 0 10px;
     font: 500 var(--step--2)/1.3 var(--font-mono);
@@ -156,6 +166,7 @@
   .seg { display: inline-flex; border: 1px solid var(--hair); border-radius: 6px; overflow: hidden; }
   .seg .chip { border: 0; border-radius: 0; }
   .seg .chip + .chip { border-left: 1px solid var(--hair); }
+  .seg .chip:focus-visible { outline-offset: -3px; }
 
   .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
   .row > span { min-width: 0; }
@@ -191,7 +202,8 @@
   .slider { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
   input[type="range"] { width: 100%; margin: 0; accent-color: var(--plasma); }
   output { font: 500 var(--step--1)/1 var(--font-mono); color: var(--dim); min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
-  .hint { margin: 0; font-size: var(--step--1); color: var(--faint); }
+  .hint { margin: 0; font-size: var(--step--1); color: var(--dim); }
+  .touch-hint { display: none; }
 
   select {
     appearance: none;
@@ -207,7 +219,7 @@
   }
 
   .actions { display: flex; flex-wrap: wrap; gap: 6px; }
-  #btnMore { display: none; }
+  .controls:not(.open) .more { display: none; }
 
   :focus { outline: none; }
   :focus-visible { outline: 2px solid var(--plasma); outline-offset: 2px; }
@@ -298,9 +310,36 @@
     .readouts dd.sub { font-size: var(--step--2); }
     .perf { display: none; }
     .controls { grid-area: 4 / 1; width: 100%; max-height: 48vh; overflow: auto; padding: 12px; gap: 12px; }
-    .controls:not(.open) .more { display: none; }
-    #btnMore { display: inline-block; }
-    .sheet { top: auto; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); width: auto; max-height: 72vh; padding: 16px 16px 18px; }
+    .touch-hint { display: block; }
+    .sheet { top: auto; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); width: auto; max-height: 46vh; padding: 16px 16px 18px; }
+  }
+
+  /* Short windows (laptops, landscape phones): every control stays reachable. */
+  @media (min-width: 721px) {
+    .hud { grid-template-rows: auto minmax(0, 1fr) minmax(0, auto); }
+    .controls { max-height: 100%; overflow: auto; overscroll-behavior: contain; }
+  }
+  @media (min-width: 721px) and (max-height: 640px) {
+    .lede { display: none; }
+    .readouts { padding: 10px 14px; }
+    .readouts dl { gap: 8px; }
+    .perf { margin-top: 8px; padding-top: 6px; }
+    .controls { padding: 12px; gap: 12px; }
+  }
+  @media (min-width: 721px) and (max-height: 480px) {
+    .hud { gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 12px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 12px) max(16px, env(safe-area-inset-left, 0px)); }
+    h1 { font-size: 1.3rem; }
+    .eyebrow { margin-bottom: 6px; }
+    .readouts dl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; }
+    .readouts dd { font-size: var(--step--1); }
+    .readouts dd.sub { font-size: var(--step--2); }
+    .perf { display: none; }
+  }
+  @media (pointer: coarse) {
+    .chip, .btn { min-height: 40px; }
+    .toggle { width: 44px; height: 26px; }
+    .toggle::after { width: 20px; height: 20px; }
+    .toggle:checked::after { transform: translateX(18px); }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -309,13 +348,13 @@
   }
 </style>
 
-<canvas id="sky" role="img" aria-label="Чёрная дыра с аккреционным диском, рассчитанная трассировкой лучей. Перетаскивайте, чтобы облететь её."></canvas>
+<canvas id="sky" role="img" aria-label="Чёрная дыра с аккреционным диском, рассчитанная трассировкой лучей. Перетаскивайте изображение или нажимайте стрелки, чтобы облететь её."></canvas>
 
 <div class="hud" id="hud">
   <header class="masthead">
     <p class="eyebrow">Метрика Шварцшильда · трассировка лучей</p>
     <h1>Горизонт событий</h1>
-    <p class="lede">Каждый пиксель здесь — луч света, который программа ведёт по искривлённому пространству рядом с чёрной дырой. Тяните мышью или пальцем, чтобы облететь её, колесо или щипок меняют расстояние.</p>
+    <p class="lede">Каждый пиксель здесь — луч света, который программа ведёт по искривлённому пространству рядом с чёрной дырой. Перетаскивайте изображение мышью или пальцем, чтобы облететь дыру. Колесо мыши или щипок меняют расстояние.</p>
   </header>
 
   <section class="readouts panel" aria-label="Показания приборов" aria-live="off">
@@ -326,7 +365,7 @@
         <dd class="sub" id="roDistKm">—</dd>
       </div>
       <div>
-        <dt>Наклон к диску</dt>
+        <dt>Угол к оси диска</dt>
         <dd id="roInc">—</dd>
         <dd class="sub" id="roIncNote">—</dd>
       </div>
@@ -335,7 +374,7 @@
         <dd id="roClock">—</dd>
       </div>
       <div>
-        <dt>Оборот у края диска</dt>
+        <dt>Оборот у внутреннего края</dt>
         <dd id="roIsco">—</dd>
       </div>
     </dl>
@@ -351,14 +390,15 @@
         <button type="button" class="chip" data-preset="edge" aria-pressed="true">С ребра</button>
         <button type="button" class="chip" data-preset="close" aria-pressed="false">Вплотную</button>
       </div>
+      <p class="hint touch-hint">Ведите пальцем, чтобы облететь дыру, щипок меняет расстояние.</p>
     </div>
 
-    <div class="more">
-      <div class="row">
-        <label for="optLens">Искривление света</label>
-        <input type="checkbox" class="toggle" id="optLens" checked>
-      </div>
+    <div class="row">
+      <label for="optLens">Искривление света</label>
+      <input type="checkbox" class="toggle" id="optLens" checked>
+    </div>
 
+    <div class="more" id="more">
       <div class="group">
         <label class="label" for="optDoppler">Доплер и красное смещение</label>
         <div class="slider">
@@ -391,9 +431,9 @@
     </div>
 
     <div class="actions">
-      <button type="button" class="btn" id="btnPause" aria-pressed="false">Пауза</button>
+      <button type="button" class="btn" id="btnPause">Пауза</button>
       <button type="button" class="btn" id="btnInfo" aria-expanded="false" aria-controls="sheet">Что здесь видно?</button>
-      <button type="button" class="btn" id="btnMore" aria-expanded="false">Настройки</button>
+      <button type="button" class="btn" id="btnMore" aria-expanded="false" aria-controls="more">Настройки</button>
       <button type="button" class="btn" id="btnHide">Скрыть панели</button>
     </div>
   </section>
@@ -407,11 +447,11 @@
   <dl>
     <div>
       <dt>Тень</dt>
-      <dd>Чёрный круг радиусом около 2,6 r<sub>s</sub>. Свет, который проходит ближе, уже не выберется и упадёт за горизонт. Сам горизонт меньше, всего 1 r<sub>s</sub>, и увидеть его нельзя.</dd>
+      <dd>Чёрный круг радиусом около 2,6&nbsp;r<sub>s</sub>. Луч, нацеленный внутрь этого круга, уже не выберется и упадёт за горизонт. Сам горизонт меньше, всего 1&nbsp;r<sub>s</sub>, и увидеть его нельзя.</dd>
     </div>
     <div>
       <dt>Фотонное кольцо</dt>
-      <dd>Тонкая яркая линия по краю тени. Это свет, который успел обернуться вокруг дыры один или несколько раз, прежде чем попасть в камеру.</dd>
+      <dd>Тонкая яркая линия по краю тени. Это свет, который обогнул дыру хотя бы на пол-оборота, прежде чем попасть в камеру. Каждое следующее, ещё более тонкое кольцо — это ещё пол-оборота.</dd>
     </div>
     <div>
       <dt>Арка над тенью</dt>
@@ -419,26 +459,33 @@
     </div>
     <div>
       <dt>Яркая и тусклая стороны</dt>
-      <dd>У внутреннего края газ летит со скоростью половины скорости света. Сторона, которая движется к вам, <span class="cool">ярче и голубее</span>, удаляющаяся <span class="warm">тусклее и краснее</span>. Ползунок «Доплер» убирает этот эффект.</dd>
+      <dd>У внутреннего края газ летит со скоростью в половину световой. Сторона, которая движется к вам, <span class="cool">ярче и голубее</span>, а та, что удаляется, <span class="warm">тусклее и краснее</span>. Ползунок «Доплер и красное смещение» ослабляет этот эффект, а в нуле убирает совсем.</dd>
     </div>
     <div>
-      <dt>Внутренний край на 3 r<sub>s</sub></dt>
+      <dt>Внутренний край на 3&nbsp;r<sub>s</sub></dt>
       <dd>Ближе нет устойчивых круговых орбит. Газ, перешедший эту границу, падает в дыру за считаные обороты.</dd>
     </div>
     <div>
       <dt>Как в «Интерстелларе»</dt>
-      <dd>Создатели фильма убрали доплеровский эффект, чтобы диск Гаргантюа выглядел ровным. Вид «Гаргантюа» повторяет это решение. В фильме дыра ещё и быстро вращалась, а здесь она невращающаяся.</dd>
+      <dd>Создатели фильма убрали доплеровский эффект, чтобы диск Гаргантюа выглядел ровным. Вид «Гаргантюа» повторяет это решение. В фильме дыра ещё и быстро вращалась, а здесь она не вращается.</dd>
     </div>
     <div>
       <dt>Без искривления</dt>
       <dd>Выключите «Искривление света», и вы увидите ту же сцену в плоском пространстве: обычный эллипс диска и маленький чёрный шар.</dd>
     </div>
+    <div>
+      <dt>Масса дыры</dt>
+      <dd>Картинка от массы не зависит: в единицах r<sub>s</sub> дыра в 10 солнечных масс и дыра в миллиарды солнечных масс выглядят одинаково. Выбор массы меняет только километры и время в показаниях.</dd>
+    </div>
   </dl>
 
+  <h3>Клавиатура</h3>
+  <p>Стрелки облетают дыру, клавиши «+» и «−» меняют расстояние, пробел ставит на паузу, H прячет панели, Esc закрывает эту справку.</p>
+
   <h3>Как это посчитано</h3>
-  <p>Для каждого пикселя программа пускает луч из камеры назад и шаг за шагом решает уравнение движения света в метрике Шварцшильда, где u = 1/r:</p>
+  <p>Для каждого пикселя программа ведёт луч в обратную сторону, от камеры к источнику света, и шаг за шагом решает уравнение его траектории в метрике Шварцшильда. Здесь u&nbsp;=&nbsp;1/r, а φ&nbsp;— угол поворота луча:</p>
   <code class="formula">d²u/dφ² + u = 3/2 · r<sub>s</sub> · u²</code>
-  <p>На один пиксель уходит от 30 до 360 шагов, и всё это пересчитывается в каждом кадре на видеокарте. Расстояния даны в радиусах Шварцшильда r<sub>s</sub>. Цвета диска условные: температура газа пересчитана в видимый диапазон.</p>
+  <p>На один пиксель уходит от 10 до 300&nbsp;шагов, у края тени лучей на пиксель четыре, и всё это пересчитывается в каждом кадре на видеокарте. Камера висит над дырой неподвижно, поэтому её часы идут медленнее, а свет диска приходит к ней чуть голубее. Расстояния даны в радиусах Шварцшильда r<sub>s</sub>. Цвета диска условные: температура газа пересчитана в видимый диапазон.</p>
 </aside>
 
 <button type="button" class="btn" id="btnShow" hidden>Показать панели</button>
@@ -447,16 +494,19 @@
 <script>
 (() => {
   'use strict';
+  document.documentElement.lang = 'ru';
 
   const $ = (id) => document.getElementById(id);
   const canvas = $('sky');
   const statusEl = $('status');
   const DEG = Math.PI / 180;
-  const MIN_D = 2.4;
+  const MIN_D = 3.0;
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
   const MAX_D = 90;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function fail(message, detail) {
+    document.querySelectorAll('.hud .panel').forEach((p) => { p.hidden = true; });
     statusEl.classList.add('error');
     statusEl.textContent = message;
     if (detail) {
@@ -472,7 +522,7 @@
     powerPreference: 'high-performance', preserveDrawingBuffer: false,
   });
   if (!gl) {
-    fail('Этому браузеру не хватает WebGL 2. Откройте страницу в свежем Chrome, Firefox, Edge или Safari.');
+    fail('Не удалось включить WebGL\u00A02. Включите аппаратное ускорение в настройках браузера или откройте страницу в свежем Chrome, Firefox, Edge или Safari.');
     return;
   }
   let floatOK = !!(gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float'));
@@ -504,6 +554,8 @@
   uniform float uDisk;
   uniform float uEncode;
   uniform float uEscape;
+  uniform vec2 uShift;   // offset of the optical axis on screen, in scene pixels
+  uniform float uPix;    // angular size of one scene pixel at the centre, radians
 
   // Units: Schwarzschild radius r_s = 1, so M = 0.5 and c = G = 1.
   const float R_IN = 3.0;   // innermost stable circular orbit, 3 r_s
@@ -557,37 +609,60 @@
     return pow(clamp(c, 0.0, 1.0), vec3(2.2));
   }
 
-  // Thin disk in the plane y = 0. Returns premultiplied emission and opacity.
-  vec4 disk(vec3 p, vec3 dir) {
+  // One copy of the gas texture: wide streaks along the orbit plus finer turbulence.
+  float gas(vec2 cs, float r, float seed) {
+    return 1.5 * (fbm(vec3(cs * 1.25, r * 2.4 + seed)) - 0.32)
+         + 0.7 * (fbm(vec3(cs * 3.6, r * 7.5 + seed * 0.43) + 5.3) - 0.42);
+  }
+
+  // Thin disk in the plane y = 0, hit by a ray with coordinate velocity vel.
+  // Returns premultiplied emission and opacity.
+  vec4 disk(vec3 p, vec3 vel, float camD) {
     float r = length(p.xz);
     if (r < R_IN || r > R_OUT) return vec4(0.0);
 
-    // Gas pattern co-rotates with Keplerian angular velocity, inner rings faster.
-    float omega = 0.70710678 / (r * sqrt(r));
-    float ang = atan(p.z, p.x) - omega * uTime * 5.0;
-    vec2 cs = vec2(cos(ang), sin(ang));
-    float n1 = fbm(vec3(cs * 1.25, r * 2.4));
-    float n2 = fbm(vec3(cs * 3.6, r * 7.5) + 5.3);
+    // The texture co-rotates with Keplerian angular velocity, so inner rings lap outer ones.
+    // Shear grows without bound, so each copy is advected for at most PERIOD seconds and
+    // two copies half a period apart are cross-faded.
+    const float PERIOD = 24.0;
+    float spin = 5.0 * 0.70710678 / (r * sqrt(r));
+    float phi = atan(p.z, p.x);
+    float c0 = floor(uTime / PERIOD);
+    float c1 = floor(uTime / PERIOD + 0.5);
+    float t0 = uTime - c0 * PERIOD;
+    float t1 = uTime + 0.5 * PERIOD - c1 * PERIOD;
+    float w0 = 1.0 - abs(2.0 * t0 / PERIOD - 1.0);
+    float a0 = phi - spin * t0;
+    float a1 = phi - spin * t1;
+    float d0 = gas(vec2(cos(a0), sin(a0)), r, c0 * 7.31);
+    float d1 = gas(vec2(cos(a1), sin(a1)), r, c1 * 7.31 + 40.0);
+    float nz = (w0 * d0 + (1.0 - w0) * d1) * inversesqrt(w0 * w0 + (1.0 - w0) * (1.0 - w0));
     float edge = smoothstep(R_IN, R_IN + 0.4, r) * (1.0 - smoothstep(R_OUT - 5.5, R_OUT, r));
-    float dens = edge * clamp(0.32 + 1.5 * (n1 - 0.32) + 0.7 * (n2 - 0.42), 0.04, 1.15);
+    float dens = edge * clamp(0.32 + nz, 0.04, 1.15);
 
-    // Novikov-Thorne temperature profile, normalised to 1 at its peak (r = 49/36 r_in).
-    float x = R_IN / r;
-    float prof = pow(x, 0.75) * pow(max(1.0 - sqrt(x), 1e-4), 0.25) / 0.4880;
+    // Relativistic thin disk (Novikov-Thorne / Page-Thorne flux for a non-spinning hole),
+    // x = sqrt(r / M). Temperature T ~ F^(1/4), normalised to 1 at its peak, r = 4.78 r_s.
+    float xs = sqrt(2.0 * r);
+    float br = xs - 2.4494897 - 0.8660254 * log((xs - 1.7320508) * 5.8284271 / (xs + 1.7320508));
+    float flux = max(br, 0.0) / (xs * xs * xs * xs * xs * (xs * xs - 3.0));
+    float prof = pow(flux, 0.25) / 0.103463;
 
-    // Relativistic Doppler factor of the orbiting gas plus gravitational redshift.
+    // Frequency shift seen by the hovering camera: Doppler factor of the orbiting gas,
+    // gravitational redshift out of the well and blueshift falling into the camera's own.
     vec3 vdir = vec3(-p.z, 0.0, p.x) / r;
-    float beta = sqrt(0.5 / (r - 1.0));
+    float beta = sqrt(0.5 / (r - 1.0));      // orbital speed measured by a static observer
     float gam = inversesqrt(1.0 - beta * beta);
-    float cosT = dot(vdir, -dir);
-    float g = sqrt(1.0 - 1.0 / r) / (gam * (1.0 - beta * cosT));
+    float cosT = -dot(vdir, vel) * sqrt(1.0 - uLens / r);
+    float g = sqrt((1.0 - uLens / r) / (1.0 - uLens / camD)) / (gam * (1.0 - beta * cosT));
     g = mix(1.0, g, uDoppler);
 
-    float temp = 6800.0 * prof * g;
-    float g2 = g * g;
-    float intensity = prof * prof * prof * prof * g2 * g;  // I_nu ~ g^3 (flat spectrum), times T^4 profile
+    // Colour follows the shifted temperature. Brightness is the local flux (T^4) times g^3:
+    // the bolometric law would be g^4; g^3 is a deliberate softening so the receding side
+    // stays visible.
+    float temp = 5000.0 * prof * g;
+    float intensity = prof * prof * prof * prof * g * g * g;
     float alpha = clamp(dens, 0.0, 1.0);
-    vec3 col = blackbody(temp) * intensity * 2.6;
+    vec3 col = blackbody(temp) * intensity * 1.7;
     return vec4(col * alpha, alpha);
   }
 
@@ -600,9 +675,10 @@
       vec3 c = floor(p);
       vec3 sp = c + 0.2 + 0.6 * hash33(c + fl * 41.0);
       float dist = length(p - sp);
-      float rad = 0.13 - fl * 0.025;
+      float rad0 = 0.13 - fl * 0.025;
+      float rad = max(rad0, 0.75 * uPix * sc);   // at least ~0.75 px wide, so stars don't twinkle
       float mag = hash13(c * 1.37 + fl * 7.0);
-      float bright = 0.03 + 4.0 * pow(mag, 26.0);
+      float bright = (0.012 + 4.0 * pow(mag, 26.0)) * (rad0 * rad0) / (rad * rad);  // same flux
       float s = exp(-dist * dist / (rad * rad)) * bright;
       float kelvin = mix(3000.0, 12000.0, hash13(c + 9.1 + fl));
       col += blackbody(kelvin) * s;
@@ -635,12 +711,22 @@
     return base + line * vec3(0.10, 0.11, 0.16);
   }
 
-  void main() {
-    vec2 uv = (2.0 * gl_FragCoord.xy - uRes) / min(uRes.x, uRes.y);
-    vec3 dir = normalize(uCamFwd + uFov * (uv.x * uCamRight + uv.y * uCamUp));
+  vec3 primary(vec2 f) {
+    vec2 uv = (2.0 * (f - uShift) - uRes) / min(uRes.x, uRes.y);
+    return normalize(uCamFwd + uFov * (uv.x * uCamRight + uv.y * uCamUp));
+  }
 
+  // The camera hovers at fixed r, so pixel directions are measured in its local frame.
+  // Stretching the tangential part turns them into coordinate velocities whose |r x v|
+  // is the true impact parameter.
+  vec3 launch(vec3 dir, float camD) {
+    vec3 rh = uCamPos / camD;
+    float dr = dot(dir, rh);
+    return dr * rh + (dir - dr * rh) * inversesqrt(1.0 - uLens / camD);
+  }
+
+  vec3 trace(vec3 vel, float camD) {
     vec3 pos = uCamPos;
-    vec3 vel = dir;
     vec3 hv = cross(pos, vel);
     float k = -1.5 * dot(hv, hv) * uLens;  // photon "force": -3/2 h^2 r_vec / r^5
 
@@ -650,7 +736,7 @@
 
     for (int i = 0; i < 360; i++) {
       float r = length(pos);
-      float dt = r * mix(0.035, 0.11, smoothstep(2.0, 14.0, r));
+      float dt = r * mix(0.05, 0.16, smoothstep(2.0, 14.0, r));
       float r5 = r * r * r * r * r;
       vec3 vh = vel + 0.5 * dt * (k / r5) * pos;
       vec3 np = pos + dt * vh;
@@ -660,7 +746,7 @@
 
       if (uDisk > 0.5 && pos.y * np.y < 0.0) {
         float t = pos.y / (pos.y - np.y);
-        vec4 dc = disk(mix(pos, np, t), normalize(vel));
+        vec4 dc = disk(mix(pos, np, t), vel, camD);
         col += trans * dc.rgb;
         trans *= 1.0 - dc.a;
         if (trans < 0.02) break;
@@ -676,7 +762,25 @@
       vec3 sky = uSky > 0.5 ? gridSky(d) : stars(d) + nebula(d);
       col += trans * sky;
     }
+    return col;
+  }
 
+  void main() {
+    float camD = length(uCamPos);
+    vec3 vel = launch(primary(gl_FragCoord.xy), camD);
+    vec3 col;
+    // The photon ring is thinner than a pixel: supersample only the narrow annulus
+    // around the critical impact parameter, b = 3*sqrt(3)/2 r_s.
+    float b = length(cross(uCamPos, vel));
+    if (uLens > 0.5 && abs(b - 2.5980762) < 3.0 * uPix * camD) {
+      vec2 f = gl_FragCoord.xy;
+      col = 0.25 * (trace(launch(primary(f + vec2(-0.25, -0.25)), camD), camD)
+                  + trace(launch(primary(f + vec2(0.25, -0.25)), camD), camD)
+                  + trace(launch(primary(f + vec2(-0.25, 0.25)), camD), camD)
+                  + trace(launch(primary(f + vec2(0.25, 0.25)), camD), camD));
+    } else {
+      col = trace(vel, camD);
+    }
     if (uEncode > 0.5) col = col / (1.0 + col);
     fragColor = vec4(col, 1.0);
   }`;
@@ -733,6 +837,7 @@
   uniform sampler2D uScene;
   uniform sampler2D uBloom;
   uniform float uBloomOn;
+  uniform float uBloomGain;
   uniform float uEncode;
   uniform float uExposure;
   uniform vec2 uRes;
@@ -749,10 +854,10 @@
   void main() {
     vec3 c = texture(uScene, vUv).rgb;
     if (uEncode > 0.5) c = c / max(1.0 - c, 1e-3);
-    if (uBloomOn > 0.5) c += texture(uBloom, vUv).rgb * 0.42;
+    if (uBloomOn > 0.5) c += texture(uBloom, vUv).rgb * uBloomGain;
     c = aces(c * uExposure);
     vec2 q = (vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0);
-    c *= mix(1.0, smoothstep(1.35, 0.25, length(q)), 0.5);
+    c *= mix(1.0, 1.0 - smoothstep(0.25, 1.35, length(q)), 0.5);
     c = pow(c, vec3(1.0 / 2.2));
     c += (hash12(gl_FragCoord.xy + fract(uTime) * 91.0) - 0.5) / 255.0 * 1.5;
     fragColor = vec4(c, 1.0);
@@ -836,13 +941,15 @@
       scene = makeTarget(sw, sh);
     }
     if (!floatOK) return;
+    // Enough levels that the smallest one is ~12 px tall, so the glow keeps the same
+    // on-screen radius whatever the render scale.
+    const levels = clamp(Math.round(Math.log2(sh / 12.5)), 3, 8);
     let w = sw;
     let h = sh;
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < levels; i++) {
       w = Math.max(1, w >> 1);
       h = Math.max(1, h >> 1);
       mips.push(makeTarget(w, h));
-      if (w <= 4 || h <= 4) break;
     }
   }
 
@@ -865,19 +972,22 @@
 
   // ------------------------------------------------------------------ state
 
-  const cam = { D: 17, inc: 84 * DEG, az: -0.9 };
+  const cam = { D: 17, inc: 84 * DEG, az: -0.9, roll: 0 };
   const tgt = { ...cam };
   const opts = { lens: 1, doppler: 1, sky: 0, disk: 1 };
   const optTarget = { ...opts };
   let paused = reduceMotion;
   let simTime = 7.0;
   let dirty = true;
+  let viewShift = 0;     // CSS px the hole is moved down so it sits between the phone panels
+  let shiftTarget = 0;
 
+  // roll 90° puts the approaching, brighter side at the bottom, as in the EHT image of M87*.
   const PRESETS = {
-    m87:   { D: 26, inc: 17, doppler: 1, lens: 1 },
-    garg:  { D: 13.5, inc: 84, doppler: 0, lens: 1 },
-    edge:  { D: 17, inc: 84, doppler: 1, lens: 1 },
-    close: { D: 6.2, inc: 72, doppler: 1, lens: 1 },
+    m87:   { D: 26, inc: 17, roll: 90, doppler: 1, lens: 1 },
+    garg:  { D: 13.5, inc: 84, roll: 0, doppler: 0, lens: 1 },
+    edge:  { D: 17, inc: 84, roll: 0, doppler: 1, lens: 1 },
+    close: { D: 6.2, inc: 72, roll: 0, doppler: 1, lens: 1 },
   };
 
   const SCALES = {
@@ -894,15 +1004,25 @@
   const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
   const norm = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
-  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 
   function camBasis() {
     const s = Math.sin(cam.inc);
     const pos = [cam.D * s * Math.cos(cam.az), cam.D * Math.cos(cam.inc), cam.D * s * Math.sin(cam.az)];
     const fwd = norm(sub([0, 0, 0], pos));
-    const right = norm(cross(fwd, [0, 1, 0]));
-    const up = cross(right, fwd);
+    const r0 = norm(cross(fwd, [0, 1, 0]));
+    const u0 = cross(r0, fwd);
+    const cr = Math.cos(cam.roll);
+    const sr = Math.sin(cam.roll);
+    const right = r0.map((v, i) => cr * v + sr * u0[i]);
+    const up = u0.map((v, i) => cr * v - sr * r0[i]);
     return { pos, fwd, right, up };
+  }
+
+  // Half field of view across the shorter screen side: wider close in, so the shadow
+  // never fills the whole frame.
+  function fovHalf() {
+    const t = clamp((cam.D - 3) / 5, 0, 1);
+    return (55 - 25 * t * t * (3 - 2 * t)) * DEG;
   }
 
   // ----------------------------------------------------------------- render
@@ -922,7 +1042,10 @@
     gl.uniform3fv(u.uCamRight, b.right);
     gl.uniform3fv(u.uCamUp, b.up);
     gl.uniform3fv(u.uCamFwd, b.fwd);
-    gl.uniform1f(u.uFov, Math.tan(30 * DEG));
+    const tanFov = Math.tan(fovHalf());
+    gl.uniform1f(u.uFov, tanFov);
+    gl.uniform1f(u.uPix, 2 * tanFov / Math.min(scene.w, scene.h));
+    gl.uniform2f(u.uShift, 0, -viewShift * scene.h / Math.max(1, canvas.clientHeight));
     gl.uniform1f(u.uTime, simTime);
     gl.uniform1f(u.uLens, opts.lens);
     gl.uniform1f(u.uDoppler, opts.doppler);
@@ -975,8 +1098,12 @@
     gl.bindTexture(gl.TEXTURE_2D, bloomOn ? mips[0].tex : scene.tex);
     gl.uniform1i(progComp.u.uBloom, 1);
     gl.uniform1f(progComp.u.uBloomOn, bloomOn ? 1 : 0);
+    gl.uniform1f(progComp.u.uBloomGain, bloomOn ? 0.72 / mips.length : 0);
     gl.uniform1f(progComp.u.uEncode, enc);
-    gl.uniform1f(progComp.u.uExposure, 1.15);
+    // Close in, the camera sits inside the bright disk and its own gravitational blueshift
+    // brightens everything, so expose a little less there.
+    const near = clamp((cam.D - 5) / 9, 0, 1);
+    gl.uniform1f(progComp.u.uExposure, 0.85 + 0.3 * near * near * (3 - 2 * near));
     gl.uniform2f(progComp.u.uRes, canvas.width, canvas.height);
     gl.uniform1f(progComp.u.uTime, simTime);
     drawTri();
@@ -984,20 +1111,22 @@
 
   // ------------------------------------------------------------- readouts
 
+  const NB = '\u00A0';
   const fmt = (x, d = 1) => x.toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d });
   function fmtKm(km) {
-    if (km >= 1e9) return fmt(km / 1e9, km >= 1e10 ? 0 : 1) + ' млрд км';
-    if (km >= 1e6) return fmt(km / 1e6, km >= 1e7 ? 0 : 1) + ' млн км';
-    if (km >= 1e3) return fmt(km / 1e3, km >= 1e4 ? 0 : 1) + ' тыс. км';
-    return fmt(km, 0) + ' км';
+    if (km >= 1e12) return fmt(km / 1e12, km >= 1e13 ? 0 : 1) + NB + 'трлн' + NB + 'км';
+    if (km >= 1e9) return fmt(km / 1e9, km >= 1e10 ? 0 : 1) + NB + 'млрд' + NB + 'км';
+    if (km >= 1e6) return fmt(km / 1e6, km >= 1e7 ? 0 : 1) + NB + 'млн' + NB + 'км';
+    if (km >= 1e3) return fmt(km / 1e3, km >= 1e4 ? 0 : 1) + NB + 'тыс.' + NB + 'км';
+    return fmt(km, 0) + NB + 'км';
   }
   function fmtDur(sec) {
-    if (sec < 1) return fmt(sec * 1000, sec < 0.01 ? 1 : 0) + ' мс';
-    if (sec < 60) return fmt(sec, sec < 10 ? 1 : 0) + ' с';
-    if (sec < 3600) return fmt(sec / 60, 0) + ' мин';
-    if (sec < 2 * 86400) return fmt(sec / 3600, sec < 36000 ? 1 : 0) + ' ч';
-    if (sec < 2 * 365.25 * 86400) return fmt(sec / 86400, 0) + ' сут';
-    return fmt(sec / (365.25 * 86400), 1) + ' лет';
+    if (sec < 1) return fmt(sec * 1000, sec < 0.01 ? 1 : 0) + NB + 'мс';
+    if (sec < 60) return fmt(sec, sec < 10 ? 1 : 0) + NB + 'с';
+    if (sec < 3600) return fmt(sec / 60, 0) + NB + 'мин';
+    if (sec < 2 * 86400) return fmt(sec / 3600, sec < 36000 ? 1 : 0) + NB + 'ч';
+    if (sec < 2 * 365.25 * 86400) return fmt(sec / 86400, 0) + NB + 'сут';
+    return fmt(sec / (365.25 * 86400), 1) + NB + 'года';
   }
 
   const ro = {
@@ -1005,28 +1134,31 @@
     clock: $('roClock'), isco: $('roIsco'), perf: $('roPerf'),
   };
   const scaleSel = $('optScale');
-  let fpsShown = 0;
+  let fps = -1;        // -1 until the first one-second window has been measured
+  let idle = false;    // paused and the camera is at rest, so nothing is redrawn
 
   function updateReadouts() {
     const m = SCALES[scaleSel.value] || SCALES.sgr;
     const rsKm = RS_KM_PER_MSUN * m.msun;
     const km = cam.D * rsKm;
-    ro.dist.innerHTML = fmt(cam.D, 1) + ' r<sub>s</sub>';
-    ro.distKm.textContent = '≈ ' + fmtKm(km) + ' · свет идёт ' + fmtDur(km / C_KM_S);
+    ro.dist.innerHTML = fmt(cam.D, 1) + '&nbsp;r<sub>s</sub>';
+    ro.distKm.textContent = '≈' + NB + fmtKm(km) + ', свет летит ' + fmtDur(km / C_KM_S);
 
     const incDeg = cam.inc / DEG;
     ro.inc.textContent = fmt(incDeg, 0) + '°';
     const tilt = Math.min(incDeg, 180 - incDeg);
-    const side = incDeg > 90 ? ' снизу' : '';
-    ro.incNote.textContent = (tilt < 25 ? 'почти сверху' : tilt > 75 ? 'почти с ребра' : 'под углом') + side;
+    const below = incDeg > 90;
+    ro.incNote.textContent = tilt < 25 ? (below ? 'почти снизу' : 'почти сверху')
+      : (tilt > 75 ? 'почти с ребра' : 'под углом') + (below ? ', снизу' : '');
 
     const slow = 1 / Math.sqrt(1 - 1 / cam.D);
-    ro.clock.textContent = '1 ч здесь = ' + fmt(slow, slow < 1.1 ? 3 : 2) + ' ч вдали';
+    ro.clock.textContent = '1' + NB + 'ч' + NB + 'здесь = ' + fmt(slow, slow < 1.1 ? 3 : 2) + NB + 'ч' + NB + 'вдали';
 
     ro.isco.textContent = fmtDur(2 * Math.PI * Math.pow(6, 1.5) * GM_C3_PER_MSUN * m.msun);
 
     const pct = Math.round(scale * 100);
-    ro.perf.textContent = (fpsShown ? fpsShown + ' к/с' : 'пауза') + ' · разрешение ' + pct + '%' + (floatOK ? '' : ' · без свечения');
+    const rate = idle ? 'пауза' : fps < 0 ? '…' : fps < 1 ? 'меньше 1 к/с' : Math.round(fps) + ' к/с';
+    ro.perf.textContent = rate + ' · разрешение ' + pct + '%' + (floatOK ? '' : ' · без свечения');
   }
 
   // ---------------------------------------------------------------- controls
@@ -1055,6 +1187,7 @@
     if (!p) return;
     tgt.D = p.D;
     tgt.inc = p.inc * DEG;
+    tgt.roll = p.roll * DEG;
     optTarget.doppler = p.doppler;
     optTarget.lens = p.lens;
     dopplerEl.value = String(Math.round(p.doppler * 100));
@@ -1086,16 +1219,30 @@
 
   function setPaused(v) {
     paused = v;
-    btnPause.setAttribute('aria-pressed', String(v));
     btnPause.textContent = v ? 'Пуск' : 'Пауза';
     dirty = true;
   }
   btnPause.addEventListener('click', () => setPaused(!paused));
   setPaused(paused);
 
+  const phoneMQ = window.matchMedia('(max-width: 720px)');
+  const readoutsEl = document.querySelector('.readouts');
+
+  // On phones the panels take the top and bottom of the screen: aim the camera so the
+  // hole sits in the middle of the gap between them.
+  function measureShift() {
+    if (!phoneMQ.matches || hud.hidden) { shiftTarget = 0; return; }
+    const top = readoutsEl.getBoundingClientRect().bottom;
+    let bottom = controls.getBoundingClientRect().top;
+    if (!sheet.hidden) bottom = Math.min(bottom, sheet.getBoundingClientRect().top);
+    shiftTarget = (top + bottom) / 2 - window.innerHeight / 2;
+  }
+
   function setSheet(open) {
     sheet.hidden = !open;
     btnInfo.setAttribute('aria-expanded', String(open));
+    controls.inert = open && phoneMQ.matches;  // on phones the sheet covers the controls
+    measureShift();
     if (open) $('btnCloseSheet').focus();
   }
   btnInfo.addEventListener('click', () => setSheet(sheet.hidden));
@@ -1105,12 +1252,14 @@
     const open = !controls.classList.contains('open');
     controls.classList.toggle('open', open);
     btnMore.setAttribute('aria-expanded', String(open));
+    measureShift();
   });
 
   function setHud(visible) {
     hud.hidden = !visible;
     btnShow.hidden = visible;
     if (!visible) setSheet(false);
+    measureShift();
     (visible ? btnHide : btnShow).focus();
   }
   btnHide.addEventListener('click', () => setHud(false));
@@ -1122,6 +1271,7 @@
     canvas.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     canvas.classList.add('dragging');
+    tgt.roll = 0;
   });
   canvas.addEventListener('pointermove', (e) => {
     const prev = pointers.get(e.pointerId);
@@ -1155,7 +1305,10 @@
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
+    if (e.code === 'Escape' && !sheet.hidden) { setSheet(false); btnInfo.focus(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;  // leave browser shortcuts (zoom, back, history) alone
     if (e.target.closest && e.target.closest('input, select, textarea')) return;
+    if (/^(Arrow|Equal|Minus|Numpad(Add|Subtract))/.test(e.code)) { markPreset(null); tgt.roll = 0; }
     switch (e.code) {
       case 'ArrowLeft': tgt.az -= 0.08; break;
       case 'ArrowRight': tgt.az += 0.08; break;
@@ -1168,7 +1321,6 @@
         setPaused(!paused);
         break;
       case 'KeyH': setHud(hud.hidden); break;
-      case 'Escape': if (!sheet.hidden) { setSheet(false); btnInfo.focus(); } return;
       default: return;
     }
     e.preventDefault();
@@ -1179,6 +1331,7 @@
   let last = performance.now();
   let samples = [];
   let goodWindows = 0;
+  let ceiling = 1;     // never climb back to a scale that already proved too slow
   let frames = 0;
   let fpsClock = last;
   let readoutClock = 0;
@@ -1192,12 +1345,13 @@
     const median = samples[20];
     samples = [];
     if (median > 26 && scale > 0.34) {
+      ceiling = Math.max(0.33, Math.round((scale - 0.05) * 100) / 100);
       scale = Math.max(0.33, Math.round((scale - 0.1) * 100) / 100);
       goodWindows = 0;
       resize();
-    } else if (median < 18.5 && scale < 1) {
+    } else if (median < 18.5 && scale < ceiling) {
       if (++goodWindows >= 2) {
-        scale = Math.min(1, Math.round((scale + 0.05) * 100) / 100);
+        scale = Math.min(ceiling, Math.round((scale + 0.05) * 100) / 100);
         goodWindows = 0;
         resize();
       }
@@ -1212,9 +1366,9 @@
     const dt = Math.min(0.1, dtMs / 1000);
     if (!paused) simTime += dt;
 
-    const k = 1 - Math.exp(-dt * 6);
+    const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 6);
     let moving = false;
-    for (const key of ['D', 'inc', 'az']) {
+    for (const key of ['D', 'inc', 'az', 'roll']) {
       const delta = tgt[key] - cam[key];
       if (Math.abs(delta) > 1e-4) { cam[key] += delta * k; moving = true; } else cam[key] = tgt[key];
     }
@@ -1222,8 +1376,11 @@
       const delta = optTarget[key] - opts[key];
       if (Math.abs(delta) > 1e-3) { opts[key] += delta * k; moving = true; } else opts[key] = optTarget[key];
     }
+    const shiftDelta = shiftTarget - viewShift;
+    if (Math.abs(shiftDelta) > 0.5) { viewShift += shiftDelta * k; moving = true; } else if (viewShift !== shiftTarget) { viewShift = shiftTarget; dirty = true; }
 
-    if (!paused || moving || dirty) {
+    idle = paused && !moving && !dirty;
+    if (!idle) {
       render();
       dirty = false;
       frames++;
@@ -1236,7 +1393,7 @@
     }
 
     if (now - fpsClock > 1000) {
-      fpsShown = paused && !moving ? 0 : Math.round(frames * 1000 / (now - fpsClock));
+      fps = frames * 1000 / (now - fpsClock);
       frames = 0;
       fpsClock = now;
     }
@@ -1249,11 +1406,15 @@
 
   canvas.addEventListener('webglcontextlost', (e) => {
     e.preventDefault();
-    fail('Видеокарта сбросила изображение. Обновите страницу.');
+    fail('Видеокарта прервала расчёт. Обновите страницу, чтобы начать заново.');
   });
+  // Programs and buffers are gone after a loss; starting over is the reliable recovery.
+  canvas.addEventListener('webglcontextrestored', () => window.location.reload());
 
-  window.addEventListener('resize', resize);
+  window.addEventListener('resize', () => { ceiling = 1; resize(); measureShift(); });
   resize();
+  measureShift();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureShift);
   updateReadouts();
   requestAnimationFrame((t) => { last = t; frame(t); });
 
@@ -1262,6 +1423,7 @@
     setScale(s) { fixedScale = s; scale = s; resize(); },
     preset: applyPreset,
     setTime(t) { simTime = t; dirty = true; },
+    settle() { Object.assign(cam, tgt); Object.assign(opts, optTarget); viewShift = shiftTarget; dirty = true; },
     state: () => ({ cam: { ...cam }, opts: { ...opts }, scale, floatOK }),
   };
 })();
