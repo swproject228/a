@@ -49,6 +49,8 @@ function startMock() {
     if (req.method === 'POST' && req.headers['x-xsrf-token'] !== 'tok=1') return send(419, { message: 'CSRF token mismatch.' });
     let m;
     if (p === '/me') return send(200, {});
+    if (p === '/conversations') return send(200, { data: [{ id: 55, unread_count: 1, last_message: { id: 9, body: 'секрет', sender_id: 301 } }] });
+    if ((m = p.match(/^\/conversations\/(\d+)\/messages$/)) && req.method === 'POST') return send(201, { id: 10, body: 'секрет', status: 'sent' });
     if (p === '/notifications/unread-count') return send(200, { count: 0 });
     if (p === '/friends/sent') return send(200, { meta: { total: S.pending.size } });
     if (p === '/people') {
@@ -96,6 +98,7 @@ async function openTab(ctx, base) {
   return page;
 }
 async function setup(page, o) {
+  await shadow(page, 'r.querySelectorAll("details").forEach((d) => { d.open = true; })');
   const fields = { likes: 0, friends: 0, dMin: 0, dMax: 0, ...o.fields };
   for (const [id, v] of Object.entries(fields)) { await $(page, id).fill(String(v)); await $(page, id).dispatchEvent('change'); }
   if ('ignore' in o) { await $(page, 'ignore').fill(o.ignore); await $(page, 'ignore').dispatchEvent('change'); }
@@ -156,6 +159,130 @@ const tests = {
     await setup(page, { fields: { friends: 120, dFriends: 120 } });
     const out = await runOnce(page, 60000);
     expect(S.requests.length === 120 && !dupes(S.requests).length, `заявок ${S.requests.length}; лог:\n${out.slice(-5).join('\n')}`);
+  },
+
+  async 'авторежим: повторяет запуски до дневного лимита'(ctx, { S, base }) {
+    const page = await openTab(ctx, base);
+    await $(page, 'autoBox').evaluate((d) => { d.open = true; });
+    await setup(page, { fields: { likes: 2, dLikes: 4, aMin: 1, aMax: 1 } });
+    await $(page, 'auto').setChecked(true);
+    await $(page, 'auto').dispatchEvent('change');
+    expect((await $(page, 'start').textContent()) === 'Старт авторежима', 'кнопка не переключилась на авторежим');
+    await $(page, 'start').click();
+    await page.waitForFunction(() => window.__gtawLogs.some((l) => /Дневные лимиты выбраны/.test(l)), null, { timeout: 15000 });
+    expect(S.reacts.length === 4 && !dupes(S.reacts).length, `лайков ${S.reacts.length}: ${S.reacts}`);
+    const runs = (await logsFrom(page, 0)).filter((l) => /Старт для персонажа/.test(l)).length;
+    expect(runs === 2, `запусков ${runs}, ожидалось 2`);
+    await $(page, 'stop').click();
+    await waitIdle(page, 3000);
+    expect((await logsFrom(page, 0)).some((l) => /Авторежим выключен/.test(l)), 'нет строки о выключении');
+  },
+
+  async 'авторежим продолжается после перезагрузки, «Стоп» его отменяет'(ctx, { S, base }) {
+    let page = await openTab(ctx, base);
+    await setup(page, { fields: { likes: 1, dLikes: 50, aMin: 60, aMax: 60 } });
+    await $(page, 'auto').setChecked(true);
+    await $(page, 'auto').dispatchEvent('change');
+    await $(page, 'start').click();
+    await page.waitForFunction(() => window.__gtawLogs.some((l) => /Следующий запуск/.test(l)));
+    await page.reload();
+    await page.waitForFunction(() => window.__gtawLogs.some((l) => /продолжаю после перезагрузки/.test(l)), null, { timeout: 5000 });
+    const status = await shadow(page, 'return r.getElementById("status").textContent');
+    expect(/запуск в .* через/.test(status), `нет обратного отсчёта: «${status}»`);
+    expect(S.reacts.length === 1, `после перезагрузки сразу ушёл лайк: ${S.reacts.length}`);
+    await $(page, 'stop').click();
+    await waitIdle(page, 3000);
+    await page.reload();
+    await page.waitForFunction(() => !document.querySelector('#gtawbot-host').shadowRoot.getElementById('start').disabled);
+    await page.waitForTimeout(500);
+    const after = await page.evaluate(() => window.__gtawLogs.filter((l) => /продолжаю после перезагрузки/.test(l)).length);
+    expect(after === 1, 'после «Стоп» авторежим снова продолжился при перезагрузке');
+  },
+
+  async 'авторежим выключается при ошибке сайта'(ctx, { S, base }) {
+    S.retryAfter = 600;
+    const page = await openTab(ctx, base);
+    await setup(page, { fields: { likes: 2, aMin: 1, aMax: 1 } });
+    await $(page, 'auto').setChecked(true);
+    await $(page, 'auto').dispatchEvent('change');
+    const out = await runOnce(page, 10000);
+    expect(out.some((l) => /СТОП: 429/.test(l)) && out.some((l) => /Авторежим выключен/.test(l)), `лог:\n${out.join('\n')}`);
+    const runs = out.filter((l) => /Старт для персонажа/.test(l)).length;
+    expect(runs === 1, `после ошибки было ещё запусков: ${runs}`);
+  },
+
+  async 'рабочие часы авторежима'(ctx, { base }) {
+    const page = await openTab(ctx, base);
+    const r = await page.evaluate(() => {
+      const { inHours, nextWindowStart } = window.__gtawInternals;
+      const at = (h, m) => new Date(2026, 9, 10, h, m || 0).getTime();
+      const fmt = (t) => { const d = new Date(t); return `${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
+      return {
+        always: inHours(at(3), 0, 24) && inHours(at(3), 5, 5),
+        day: [inHours(at(9, 59), 10, 23), inHours(at(10), 10, 23), inHours(at(23), 10, 23)],
+        night: [inHours(at(23), 22, 3), inHours(at(2, 30), 22, 3), inHours(at(12), 22, 3)],
+        next: [fmt(nextWindowStart(at(2), 10, 23)), fmt(nextWindowStart(at(23, 30), 10, 23)), fmt(nextWindowStart(at(12), 22, 3)), fmt(nextWindowStart(at(15), 10, 23))],
+      };
+    });
+    expect(r.always, 'весь день не считается рабочим');
+    expect(JSON.stringify(r.day) === '[false,true,false]', `10–23: ${r.day}`);
+    expect(JSON.stringify(r.night) === '[true,true,false]', `22–3: ${r.night}`);
+    expect(JSON.stringify(r.next) === '["10 10:00","11 10:00","10 22:00","10 15:00"]', `ближайший старт: ${r.next}`);
+  },
+
+  async 'история: вчерашние счётчики уходят в историю, сегодня с нуля'(ctx, { base }) {
+    const page = await openTab(ctx, base);
+    await setup(page, { fields: { likes: 3 } });
+    await runOnce(page);
+    await page.evaluate(() => { window.__gtawToday = '2099-01-02'; });
+    await $(page, 'likes').dispatchEvent('change');               // любое обновление панели
+    const cnt = await shadow(page, 'return r.getElementById("cnt").textContent');
+    const hist = await shadow(page, 'return r.getElementById("hist").textContent');
+    expect(/лайки 0\//.test(cnt), `сегодня не с нуля: ${cnt}`);
+    expect(/02\.01\s+лайки\s+0/.test(hist) && /лайки\s+3\s+заявки\s+0/.test(hist) && /всего\s+лайки\s+3/.test(hist), `история:\n${hist}`);
+  },
+
+  async 'запись запросов: адреса и поля без значений'(ctx, { base }) {
+    const page = await openTab(ctx, base);
+    await $(page, 'svcBox').evaluate((d) => { d.open = true; });
+    await $(page, 'rec').setChecked(true);
+    await $(page, 'rec').dispatchEvent('change');
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#gtawbot-host'));
+    await page.evaluate(async () => {
+      await (await fetch('/api/v1/conversations?page=1')).json();
+      await fetch('/api/v1/conversations/55/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': 'tok=1' }, body: JSON.stringify({ body: 'секретный текст' }) });
+      await new Promise((ok) => { const x = new XMLHttpRequest(); x.open('GET', '/api/v1/notifications/unread-count'); x.onloadend = ok; x.send(); });
+      try { new WebSocket(location.origin.replace('http', 'ws') + '/app/abc123'); } catch (_) {}
+    });
+    await page.waitForTimeout(800);
+    const text = await page.evaluate(() => window.__gtawInternals.recText());
+    expect(text.includes('POST /api/v1/conversations/{id}/messages'), `нет POST сообщения:\n${text}`);
+    expect(text.includes('req: {"body":"str"}'), `нет формы тела запроса:\n${text}`);
+    expect(text.includes('"status":"=sent"') && text.includes('"unread_count":"num"'), `нет формы ответа:\n${text}`);
+    expect(text.includes('GET /api/v1/conversations ?page={n}'), `нет списка чатов:\n${text}`);
+    expect(text.includes('GET /api/v1/notifications/unread-count'), `XHR не записан:\n${text}`);
+    expect(/WS [^\n]*\/app\/abc123/.test(text), `WebSocket не записан:\n${text}`);
+    expect(!/секрет/.test(text), 'в запись попал текст сообщения');
+  },
+
+  async 'панель перетаскивается и запоминает место'(ctx, { base }) {
+    const page = await openTab(ctx, base);
+    const hd = $(page, 'hd');
+    const b = await hd.boundingBox(), box0 = await $(page, 'box').boundingBox();
+    await page.mouse.move(b.x + 40, b.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(b.x - 200, b.y - 40, { steps: 5 });
+    await page.mouse.up();
+    const moved = await $(page, 'box').boundingBox();
+    expect(Math.abs(moved.x - (box0.x - 240)) < 3 && Math.abs(moved.y - (box0.y - 50)) < 3, `панель не сдвинулась: ${JSON.stringify(moved)} от ${JSON.stringify(box0)}`);
+    expect(!(await shadow(page, 'return r.getElementById("bd").classList.contains("off")')), 'перетаскивание свернуло панель');
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#gtawbot-host'));
+    const after = await $(page, 'box').boundingBox();
+    expect(Math.abs(after.x - moved.x) < 3 && Math.abs(after.y - moved.y) < 3, 'позиция не запомнилась');
+    await hd.click();
+    expect(await shadow(page, 'return r.getElementById("bd").classList.contains("off")'), 'щелчок по заголовку не свернул панель');
   },
 
   async 'устаревшая лента: один пост не нажимается дважды'(ctx, { S, base }) {
