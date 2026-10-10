@@ -17,13 +17,16 @@ const PAGE = `<!doctype html><meta charset="utf-8"><title>mock</title>
 // ---------------------------------------------------------------- фейковый сервер
 function startMock() {
   const S = { reacted: new Set(), reacts: [], requests: [], pending: new Set(), refuse: new Set([122]),
-    retryAfter: null, staleFeed: false };
-  const people = [];
-  for (let id = 101; id <= 125; id++) {
-    people.push({ id, username: 'user' + id, is_online: id % 2 === 0, is_minor: id === 105,
-      last_activity_at: '2026-10-10T10:' + String(id - 100).padStart(2, '0') });
-  }
-  people.splice(3, 0, { id: ME, username: 'me' });
+    retryAfter: null, staleFeed: false, peopleCount: 25 };
+  const allPeople = () => {
+    const people = [];
+    for (let id = 101; id < 101 + S.peopleCount; id++) {
+      people.push({ id, username: 'user' + id, is_online: id % 2 === 0, is_minor: id === 105,
+        last_activity_at: '2026-10-10T10:' + String(id - 100).padStart(3, '0') });
+    }
+    people.splice(3, 0, { id: ME, username: 'me' });
+    return people;
+  };
   const feedPages = {
     '': { ids: [1, 2, 3, 4, 5, 6], next: 'c2' },
     c2: { ids: [5, 6, 7, 8, 9, 10], next: 'c3' },          // перекрывается с первой страницей
@@ -50,7 +53,7 @@ function startMock() {
     if (p === '/friends/sent') return send(200, { meta: { total: S.pending.size } });
     if (p === '/people') {
       const off = +u.searchParams.get('offset'), lim = +u.searchParams.get('limit');
-      const list = people.filter((x) => !S.pending.has(x.id));
+      const list = allPeople().filter((x) => !S.pending.has(x.id));
       const from = off ? off - 1 : 0;                       // список «съезжает» на одного между страницами
       return send(200, { people: list.slice(from, from + lim) });   // поле total не отдаём
     }
@@ -145,6 +148,14 @@ const tests = {
     expect(!feed.some((x) => [2, 3, 4].includes(x)), `лайкнут свой/18+/игнор: ${feed}`);
     const cnt = await shadow(page, 'return r.getElementById("cnt").textContent');
     expect(cnt.includes(`лайки ${S.reacts.length}/`) && cnt.includes('заявки 4/'), `счётчик: ${cnt}`);
+  },
+
+  async 'большой план заявок: листает дальше 6 страниц и выше старого потолка 80'(ctx, { S, base }) {
+    S.peopleCount = 400; S.refuse.clear();
+    const page = await openTab(ctx, base);
+    await setup(page, { fields: { friends: 120, dFriends: 120 } });
+    const out = await runOnce(page, 60000);
+    expect(S.requests.length === 120 && !dupes(S.requests).length, `заявок ${S.requests.length}; лог:\n${out.slice(-5).join('\n')}`);
   },
 
   async 'устаревшая лента: один пост не нажимается дважды'(ctx, { S, base }) {

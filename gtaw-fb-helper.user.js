@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Facebrowser Helper (GTA World)
 // @namespace    gtaw-fb-helper
-// @version      1.1.0
+// @version      1.2.0
 // @description  Лайки и заявки в друзья от имени текущего персонажа: лимиты, паузы, dry-run. Работает в уже открытой и залогиненной вкладке.
 // @match        https://fbv2.gtaw.io/*
 // @run-at       document-start
@@ -21,7 +21,7 @@
   const LOCK = 'gtawbot:run';
   const TEST = !!window.__GTAWBOT_TEST__;
   const MIN_DELAY_FLOOR = TEST ? 0 : 5;            // сек, ниже нельзя
-  const HARD_MAX = { likes: 300, friends: 80 };    // потолок дневных лимитов
+  const HARD_MAX = { likes: 1000, friends: 500 };  // потолок дневных лимитов (поднять можно здесь)
   const GAP = TEST ? [0, 0] : [1.5, 4];            // пауза между служебными GET-запросами, сек
   const WARMUP_GAP = TEST ? [0, 0] : [3, 8];       // от лайка «перед заявкой» до самой заявки, сек
   const REQUEST_TIMEOUT = 25;                      // сек на один запрос
@@ -273,9 +273,11 @@
 
   async function gatherPeople(want) {
     const PAGE = 10;
+    const target = Math.max(want * 3, 20);
+    const maxPages = Math.min(60, Math.max(6, Math.ceil(target / PAGE) + 2));   // большой план: листаем дальше
     const pool = [], ids = new Set();
     let skippedSent = 0;
-    for (let i = 0; i < 6 && pool.length < Math.max(want * 3, 20); i++) {
+    for (let i = 0; i < maxPages && pool.length < target; i++) {
       if (i) await gap();
       const q = new URLSearchParams({ limit: PAGE, offset: i * PAGE, gender: 'all', exclude_friends: 'true',
         exclude_requested: 'true', exclude_block_friend_requests: 'true', exclude_minors: 'true' });
