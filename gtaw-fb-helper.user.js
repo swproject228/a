@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Facebrowser Helper (GTA World)
 // @namespace    gtaw-fb-helper
-// @version      1.3.0
+// @version      1.3.1
 // @description  Лайки и заявки в друзья от имени текущего персонажа: лимиты, паузы, dry-run, авторежим, история. Работает в уже открытой и залогиненной вкладке.
 // @match        https://fbv2.gtaw.io/*
 // @run-at       document-start
@@ -14,12 +14,13 @@
   if (window.top !== window || window.__gtawBotLoaded) return;
   window.__gtawBotLoaded = true;
 
-  const VERSION = '1.3.0';
+  const VERSION = '1.3.1';
   const API = window.__GTAWBOT_API__ || 'https://fbv2-api.gtaw.io';
   const API_ORIGIN = new URL(API).origin;
   const V1 = API + '/api/v1';
   const STORE = 'gtawbot:v1';
   const REC_STORE = 'gtawbot:rec';
+  const AUTO_STORE = 'gtawbot:auto';
   const LOCK = 'gtawbot:run';
   const TEST = !!window.__GTAWBOT_TEST__;
   const MIN_DELAY_FLOOR = TEST ? 0 : 5;            // сек, ниже нельзя
@@ -35,7 +36,9 @@
   const AUTO_UNIT = TEST ? 1000 : 60000;           // интервал авторежима задаётся в минутах (в автотестах: в секундах)
   const AUTO_FLOOR = TEST ? 0 : 5;                 // мин, чаще авторежим не запускается
   const REC_CAP = 150;                             // сколько разных запросов помнит запись
+  const NET_RETRIES = 3, NET_RETRY_MIN = 5;        // авторежим при обрыве связи: 3 попытки раз в 5 мин
   const USER_STOP = 'Остановлено кнопкой.';
+  const AUTO_OFF = 'Авторежим выключен галочкой.';
   const DAY_MS = 864e5;
 
   // ------------------------------------------------------------------ утилиты
@@ -59,13 +62,12 @@
     const m = Math.round(s / 60);
     return m < 90 ? `${m} мин` : `${Math.floor(m / 60)} ч ${m % 60} мин`;
   };
-  class Stop extends Error {}
+  class Stop extends Error { constructor(msg, transient) { super(msg); this.transient = !!transient; } }
 
   // ------------------------------------------------------------------ хранилище
-  const store = {
-    read() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch (_) { return {}; } },
-    write(s) { try { localStorage.setItem(STORE, JSON.stringify(s)); } catch (_) {} },
-  };
+  const readJSON = (key) => { try { return JSON.parse(localStorage.getItem(key)) || {}; } catch (_) { return {}; } };
+  const writeJSON = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch (_) {} };
+  const store = { read: () => readJSON(STORE), write: (v) => writeJSON(STORE, v) };
 
   // Счётчики общие для всех вкладок сайта. Перед записью сливаем свои данные с сохранёнными,
   // иначе вкладка, открытая утром, затрёт счётчики, набранные за день в другой вкладке.
@@ -77,7 +79,10 @@
   }
   const maxPair = (a, b) => [Math.max((a && a[0]) || 0, (b && b[0]) || 0), Math.max((a && a[1]) || 0, (b && b[1]) || 0)];
   function pruneHist(hist) {
-    const days = Object.keys(hist || {}).filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort().slice(-HIST_DAYS);
+    const edge = new Date(today() + 'T12:00:00');
+    edge.setDate(edge.getDate() - (HIST_DAYS - 1));
+    const from = ymd(edge);
+    const days = Object.keys(hist || {}).filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k) && k >= from).sort();
     return Object.fromEntries(days.map((k) => [k, maxPair(hist[k], null)]));
   }
   function mergeProfile(x, y) {
@@ -104,16 +109,23 @@
     return out;
   }
 
-  const state = Object.assign({ settings: {}, profiles: {}, collapsed: false, log: [], auto: { on: false }, pos: null }, store.read());
+  const state = Object.assign({ settings: {}, profiles: {}, collapsed: false, log: [], pos: null }, store.read());
   state.profiles = mergeProfiles(state.profiles, null);
-  let autoOwner = false;   // эта вкладка ведёт авторежим и хозяйка поля state.auto
-  const save = () => {
+  if (state.auto) { if (!localStorage.getItem(AUTO_STORE)) writeJSON(AUTO_STORE, state.auto); delete state.auto; }   // формат 1.3.0
+  // Сохраняем счётчики и лог, а из остального только перечисленные ключи, которые поменяла эта вкладка:
+  // иначе вкладка со старыми настройками затирала бы то, что пользователь поменял в другой.
+  function save(...keys) {
     const fresh = store.read();
     state.profiles = mergeProfiles(state.profiles, fresh.profiles);
-    if (!autoOwner) state.auto = fresh.auto || { on: false };
-    store.write(state);
-  };
-  const writeAuto = (a) => { const was = autoOwner; autoOwner = true; state.auto = a; save(); autoOwner = was; };
+    const out = Object.assign({}, fresh, { profiles: state.profiles, log: state.log });
+    for (const k of keys) out[k] = state[k];
+    delete out.auto;
+    store.write(out);
+  }
+  // Состояние авторежима лежит отдельно и вместе с его настройками: продолжение после перезагрузки
+  // не зависит от того, что сохранили другие вкладки.
+  const readAuto = () => readJSON(AUTO_STORE);
+  const writeAuto = (a) => writeJSON(AUTO_STORE, a);
 
   // ------------------------------------------------------------------ состояние запуска
   let run = null;          // {pid, dry, opts, seen, ...} пока идёт один запуск
@@ -140,14 +152,18 @@
   }
   const recSave = () => { if (!recTimer) recTimer = setTimeout(recFlush, 400); };
   window.addEventListener('pagehide', () => { if (recTimer) recFlush(); });
-  const tmplPath = (p) => String(p).replace(/\/(\d+|[0-9a-f]{8}-[0-9a-f-]{27,}|[0-9a-f]{20,})(?=\/|$)/gi, '/{id}');
-  const ENUMISH = /^(status|type|kind|state|role|visibility|sort|event|gender|reaction|action|direction|channel|friendship_status)$/i;
+  // В адресе остаются только служебные слова (conversations, unread-count, v1); всё с цифрами,
+  // заглавными буквами и прочим (id, ники, токены) заменяется на {id}.
+  const tmplPath = (p) => String(p).split('/').map((seg) => (!seg || /^[a-z]+(?:[-_][a-z]+)*$/.test(seg) || /^v\d+$/.test(seg) ? seg : '{id}')).join('/');
+  const pageTag = () => tmplPath('/' + (location.pathname.split('/')[1] || ''));
+  const ENUMISH = /^(status|type|kind|state|role|visibility|sort|event|gender|reaction|action|direction|friendship_status)$/i;
+  const SAFE_QUERY = /^(sort|type|order|filter|tab|gender|online|status|scope|kind|direction|with|include|exclude_\w+|is_\w+)$/i;
   function shape(v, depth, key) {
     depth = depth || 0;
     if (v === null) return 'null';
     if (Array.isArray(v)) return v.length ? [shape(v[0], depth + 1, key)] : [];
     switch (typeof v) {
-      case 'string': return ENUMISH.test(key || '') && v.length <= 32 ? `=${v}` : 'str';
+      case 'string': return ENUMISH.test(key || '') && /^[a-z_.:-]{1,32}$/.test(v) ? `=${v}` : 'str';
       case 'number': return 'num';
       case 'boolean': return 'bool';
       case 'object': {
@@ -185,9 +201,9 @@
       it.n++;
       u.searchParams.forEach((v, k) => {
         it.q = it.q || {};
-        it.q[k] = /^\d+$/.test(v) ? '{n}' : (v.length <= 24 && /^[\w.-]*$/.test(v) ? v : 'str');
+        it.q[k] = /^\d+$/.test(v) ? '{n}' : (SAFE_QUERY.test(k) && /^[a-z_.-]{1,24}$/.test(v) ? v : 'str');
       });
-      it.page = tmplPath(location.pathname);
+      it.page = pageTag();
       fill(it);
       recSave();
     } catch (_) { /* запись не должна ломать сайт */ }
@@ -285,7 +301,10 @@
       if (rec.on && isSite(url)) {
         const req = bodyShape(init && init.body);
         p.then((res) => {
-          try { res.clone().text().then((t) => recHttp(method, url, req, res.status, t), () => {}); } catch (_) {}
+          try {
+            if (!/json/i.test(res.headers.get('content-type') || '') && method === 'GET') return;   // не держим потоки и файлы
+            res.clone().text().then((t) => recHttp(method, url, req, res.status, t), () => {});
+          } catch (_) {}
         }, () => {});
       }
     } catch (_) {}
@@ -337,9 +356,10 @@
   const day = (pid) => {
     const p = state.profiles[pid] || (state.profiles[pid] = {});
     if (!p.hist) p.hist = {};
-    if (p.date !== today()) {
+    const t = today();
+    if (!p.date || t > p.date) {            // только вперёд: если дата ушла назад (смена пояса), день не сбрасываем
       if (p.date && (p.likes || p.friends)) { p.hist[p.date] = maxPair(p.hist[p.date], [p.likes, p.friends]); p.hist = pruneHist(p.hist); }
-      p.date = today(); p.likes = 0; p.friends = 0;
+      p.date = t; p.likes = 0; p.friends = 0;
     }
     if (!p.sent) p.sent = {};
     return p;
@@ -397,9 +417,9 @@
         text = await res.text();
       } catch (e) {
         if (e && e.name === 'AbortError') {
-          throw new Stop(`Сайт не ответил за ${REQUEST_TIMEOUT} с` + (method === 'GET' ? '.' : ': неизвестно, прошло ли последнее действие.'));
+          throw new Stop(`Сайт не ответил за ${REQUEST_TIMEOUT} с` + (method === 'GET' ? '.' : ': неизвестно, прошло ли последнее действие.'), true);
         }
-        throw new Stop('Нет связи с сайтом: ' + (e && e.message));
+        throw new Stop('Нет связи с сайтом: ' + (e && e.message), true);
       } finally { clearTimeout(timer); }
       let js;
       try { js = text.trim() ? JSON.parse(text) : {}; } catch (_) { js = undefined; }
@@ -649,24 +669,37 @@
     } catch (_) {}
   }
 
+  let autoCancel = false;   // галочку авторежима сняли во время работы: новых запусков не будет
   async function autoLoop(pid, opts, resumeAt) {
-    autoOwner = true;
     log(`Авторежим: повтор каждые ${opts.autoMin}–${opts.autoMax} мин${hoursLabel(opts)}. Выключить: «Стоп».`);
-    let next = resumeAt || Date.now();
+    let next = resumeAt || Date.now(), netFails = 0;
     try {
       for (;;) {
-        next = nextWindowStart(next, opts.hourFrom, opts.hourTo);
-        writeAuto({ on: true, pid, next });
+        // от текущего времени: после сна компьютера или старой отметки не запускаемся вне рабочих часов
+        next = nextWindowStart(Math.max(next, Date.now()), opts.hourFrom, opts.hourTo);
+        writeAuto({ on: true, pid, next, opts });
         if (next > Date.now()) {
           setPhase('Авторежим');
           await sleep(next - Date.now(), `запуск в ${hhmm(next)},`);
         }
-        if (stopWhy) break;
-        const err = await session(pid, opts, false);
-        if (err) {
-          if (!(err instanceof Stop && err.message === USER_STOP)) notify(`Авторежим остановлен: ${err.message}`);
+        if (stopWhy) {
+          if (stopWhy !== USER_STOP && stopWhy !== AUTO_OFF) { log(`СТОП: ${stopWhy}`); notify(`Авторежим остановлен: ${stopWhy}`); }
           break;
         }
+        if (autoCancel) break;
+        if (!inHours(Date.now(), opts.hourFrom, opts.hourTo)) continue;
+        const err = await session(pid, opts, false);
+        if (err && err instanceof Stop && err.transient && !stopWhy && ++netFails <= NET_RETRIES) {
+          next = Date.now() + NET_RETRY_MIN * AUTO_UNIT;
+          log(`Авторежим: нет связи, попробую снова ${hhmm(next)} (попытка ${netFails} из ${NET_RETRIES}).`);
+          continue;
+        }
+        if (err) {
+          if (!(err instanceof Stop && (err.message === USER_STOP || err.message === AUTO_OFF))) notify(`Авторежим остановлен: ${err.message}`);
+          break;
+        }
+        netFails = 0;
+        if (autoCancel) break;
         if (exhausted(pid, opts)) {
           next = nextMidnight();
           log(`Дневные лимиты выбраны. Следующий запуск ${hhmm(nextWindowStart(next, opts.hourFrom, opts.hourTo))}.`);
@@ -677,7 +710,6 @@
       }
     } finally {
       writeAuto({ on: false });
-      autoOwner = false;
       log('Авторежим выключен.');
     }
   }
@@ -685,31 +717,36 @@
   async function start(opts, dry, resumeAt) {
     if (busy) return;
     if (!cap.profileId) { log('Персонаж не определён: открой любую страницу сайта (например «Друзья»).'); return; }
-    busy = true; activePid = cap.profileId; activeOpts = opts; stopWhy = ''; setRunning(true);
+    busy = true; activePid = cap.profileId; activeOpts = opts; stopWhy = ''; autoCancel = false; setRunning(true);
     const auto = !!opts.auto && !dry;
     try {
       const got = await exclusive(() => (auto ? autoLoop(activePid, opts, resumeAt) : session(activePid, opts, dry)));
       if (!got) log('Уже идёт запуск в другой вкладке сайта: дождись его конца или останови там.');
     } finally {
-      busy = false; activePid = null; activeOpts = null; run = null; stopWhy = '';
+      busy = false; activePid = null; activeOpts = null; run = null; stopWhy = ''; autoCancel = false;
       setRunning(false); setPhase(''); setWait(''); refreshCounters();
     }
   }
 
-  // После перезагрузки страницы авторежим продолжает с того же места (если его не выключали «Стопом»).
+  const lockHeld = async () => {
+    try { return !!(navigator.locks && navigator.locks.query && (await navigator.locks.query()).held.some((l) => l.name === LOCK)); }
+    catch (_) { return false; }
+  };
+
+  // После перезагрузки страницы авторежим продолжает с того же места и с теми же настройками,
+  // если его не выключали «Стопом» или галочкой.
   const resumeTried = new Set();
   async function maybeResume() {
     const pid = cap.profileId;
     if (busy || !ui || !pid || resumeTried.has(pid)) return;
     resumeTried.add(pid);
-    const a = store.read().auto;
-    if (!a || !a.on || String(a.pid) !== pid) return;
-    try {
-      if (navigator.locks && navigator.locks.query && (await navigator.locks.query()).held.some((l) => l.name === LOCK)) return;
-    } catch (_) {}
-    if (busy) return;
+    const a = readAuto();
+    if (!a.on || String(a.pid) !== pid) return;
+    if (await lockHeld() || busy) return;
+    const opts = Object.assign({}, DEFAULTS, a.opts || state.settings, { auto: true });
+    ui.dry.checked = false; fillInputs(opts); ui.autoBox.open = true; paintStart();   // панель показывает то, что реально идёт
     log('Авторежим: продолжаю после перезагрузки страницы.');
-    start(Object.assign({}, DEFAULTS, state.settings, { auto: true }), false, a.next);
+    start(opts, false, a.next);
   }
 
   // ------------------------------------------------------------------ панель
@@ -861,12 +898,14 @@
     const s = ui.box.style;
     if (!state.pos) { s.left = s.top = s.right = s.bottom = ''; return; }
     const w = ui.box.offsetWidth, h = ui.box.offsetHeight;
-    const x = Math.min(Math.max(0, state.pos.x), Math.max(0, window.innerWidth - w));
-    const y = Math.min(Math.max(0, state.pos.y), Math.max(0, window.innerHeight - h));
+    const vw = document.documentElement.clientWidth || window.innerWidth;     // без полосы прокрутки
+    const vh = document.documentElement.clientHeight || window.innerHeight;
+    const x = Math.min(Math.max(0, state.pos.x), Math.max(0, vw - w));
+    const y = Math.min(Math.max(0, state.pos.y), Math.max(0, vh - h));
     Object.assign(s, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' });
   }
   function toggleCollapse() {
-    state.collapsed = !state.collapsed; save();
+    state.collapsed = !state.collapsed; save('collapsed');
     ui.bd.classList.toggle('off', state.collapsed); ui.tg.textContent = state.collapsed ? '▸' : '▾';
     placeBox();
   }
@@ -886,11 +925,11 @@
     document.documentElement.appendChild(host);                    // вне <body>: React не трогает
     const $ = (id) => root.getElementById(id);
     ui = {};
-    ['box', 'hd', 'bd', 'tg', 'pid', 'cnt', 'status', 'likes', 'friends', 'dLikes', 'dFriends', 'dMin', 'dMax', 'maxPend', 'react',
+    ['box', 'hd', 'bd', 'tg', 'autoBox', 'pid', 'cnt', 'status', 'likes', 'friends', 'dLikes', 'dFriends', 'dMin', 'dMax', 'maxPend', 'react',
       'ignore', 'dry', 'warm', 'online', 'auto', 'aMin', 'aMax', 'hFrom', 'hTo', 'notify', 'start', 'stop', 'copy', 'clear',
       'log', 'hist', 'rec', 'recInfo', 'recCopy', 'recClear'].forEach((id) => { ui[id] = $(id); });
     fillInputs(Object.assign({}, DEFAULTS, state.settings));
-    if (ui.auto.checked) $('autoBox').open = true;
+    if (ui.auto.checked) ui.autoBox.open = true;
     paintStart();
     ui.bd.classList.toggle('off', !!state.collapsed); ui.tg.textContent = state.collapsed ? '▸' : '▾';
     ui.pid.textContent = 'Персонаж не определён: открой любую страницу сайта (например «Друзья»).';
@@ -909,28 +948,48 @@
       if (!drag.moved && Math.hypot(dx, dy) < 5) return;
       drag.moved = true; state.pos = { x: drag.x + dx, y: drag.y + dy }; placeBox();
     });
+    let toggleT = null;   // щелчок сворачивает с задержкой, чтобы двойной щелчок не дёргал панель
     ui.hd.addEventListener('pointerup', () => {
       if (!drag) return;
       const moved = drag.moved; drag = null;
-      if (moved) save(); else toggleCollapse();
+      if (moved) { save('pos'); return; }
+      if (toggleT) { clearTimeout(toggleT); toggleT = null; return; }
+      toggleT = setTimeout(() => { toggleT = null; toggleCollapse(); }, 250);
     });
     ui.hd.addEventListener('pointercancel', () => { drag = null; });
-    ui.hd.addEventListener('dblclick', () => { state.pos = null; save(); placeBox(); });
+    ui.hd.addEventListener('dblclick', () => { clearTimeout(toggleT); toggleT = null; state.pos = null; save('pos'); placeBox(); });
     window.addEventListener('resize', placeBox);
-    placeBox();
+    if (typeof ResizeObserver === 'function') new ResizeObserver(() => { if (state.pos) placeBox(); }).observe(ui.box);
 
-    const persist = () => {
-      state.settings = readOpts(); save(); fillInputs(state.settings); refreshCounters(); paintStart();
-      if (!state.settings.auto && !busy && state.auto && state.auto.on) writeAuto({ on: false });   // выключили авторежим: не продолжать после перезагрузки
-    };
+    const persist = () => { state.settings = readOpts(); save('settings'); fillInputs(state.settings); refreshCounters(); paintStart(); };
     [ui.likes, ui.friends, ui.dLikes, ui.dFriends, ui.dMin, ui.dMax, ui.maxPend, ui.react, ui.ignore, ui.warm, ui.online,
       ui.auto, ui.aMin, ui.aMax, ui.hFrom, ui.hTo, ui.notify].forEach((el) => el.addEventListener('change', persist));
     ui.dry.addEventListener('change', paintStart);
-    ui.notify.addEventListener('change', () => {
-      try { if (ui.notify.checked && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (_) {}
+    ui.notify.addEventListener('change', async () => {
+      if (!ui.notify.checked) return;
+      let perm = 'denied';
+      try { perm = Notification.permission; if (perm === 'default') perm = await Notification.requestPermission(); } catch (_) {}
+      if (perm !== 'granted') {
+        ui.notify.checked = false; persist();
+        log('Браузер запретил уведомления для этого сайта: разреши их в настройках сайта (значок замка у адреса).');
+      }
+    });
+    ui.auto.addEventListener('change', async () => {
+      if (busy) {
+        if (!activeOpts || !activeOpts.auto) return;
+        if (ui.auto.checked) { if (!stopWhy) autoCancel = false; return; }
+        autoCancel = true;
+        if (!run) requestStop(AUTO_OFF);
+        log(`Авторежим: новых запусков не будет${run ? ', текущий доведу до конца' : ''}.`);
+        return;
+      }
+      // не идёт здесь и не идёт в другой вкладке: отменяем продолжение после перезагрузки
+      if (ui.auto.checked || !readAuto().on || await lockHeld()) return;
+      writeAuto({ on: false });
+      log('Авторежим отменён: после перезагрузки не продолжится.');
     });
     ui.start.addEventListener('click', () => {
-      const o = readOpts(); state.settings = o; save(); fillInputs(o);
+      const o = readOpts(); state.settings = o; save('settings'); fillInputs(o);
       start(o, ui.dry.checked);
     });
     ui.stop.addEventListener('click', () => { if (!busy) return; requestStop(USER_STOP); log('Останавливаю…'); });
@@ -947,13 +1006,32 @@
     });
     ui.recClear.addEventListener('click', () => { rec.items = {}; recFlush(); });
     paintLog(); paintStatus(); paintRec();
+    placeBox();                                                     // после заполнения: высота уже настоящая
     if (cap.profileId) onProfile();
   }
 
   // счётчики, изменённые в другой вкладке, сразу видны и здесь
   window.addEventListener('storage', (e) => {
+    if (e.key === REC_STORE) {                     // запись выключили или очистили в другой вкладке
+      const v = (() => { try { return JSON.parse(e.newValue) || {}; } catch (_) { return {}; } })();
+      rec.on = !!v.on; rec.items = v.items && typeof v.items === 'object' ? v.items : {};
+      paintRec();
+      return;
+    }
     if (e.key !== STORE) return;
-    try { state.profiles = mergeProfiles(state.profiles, (JSON.parse(e.newValue) || {}).profiles); } catch (_) {}
+    let n = {};
+    try { n = JSON.parse(e.newValue) || {}; } catch (_) {}
+    state.profiles = mergeProfiles(state.profiles, n.profiles);
+    if (ui) {
+      if (!!n.collapsed !== !!state.collapsed) { state.collapsed = !!n.collapsed; ui.bd.classList.toggle('off', state.collapsed); ui.tg.textContent = state.collapsed ? '▸' : '▾'; }
+      if (JSON.stringify(n.pos || null) !== JSON.stringify(state.pos || null)) state.pos = n.pos || null;
+      // настройки из другой вкладки, если здесь их сейчас не редактируют и ничего не запущено
+      const host = document.getElementById('gtawbot-host');
+      if (n.settings && !busy && document.activeElement !== host && JSON.stringify(n.settings) !== JSON.stringify(state.settings)) {
+        state.settings = n.settings; fillInputs(Object.assign({}, DEFAULTS, n.settings)); paintStart();
+      }
+      placeBox();
+    }
     refreshCounters();
   });
 

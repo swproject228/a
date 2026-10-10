@@ -17,7 +17,7 @@ const PAGE = `<!doctype html><meta charset="utf-8"><title>mock</title>
 // ---------------------------------------------------------------- фейковый сервер
 function startMock() {
   const S = { reacted: new Set(), reacts: [], requests: [], pending: new Set(), refuse: new Set([122]),
-    retryAfter: null, staleFeed: false, peopleCount: 25 };
+    retryAfter: null, staleFeed: false, peopleCount: 25, drops: 0 };
   const allPeople = () => {
     const people = [];
     for (let id = 101; id < 101 + S.peopleCount; id++) {
@@ -51,7 +51,11 @@ function startMock() {
     if (p === '/me') return send(200, {});
     if (p === '/conversations') return send(200, { data: [{ id: 55, unread_count: 1, last_message: { id: 9, body: 'секрет', sender_id: 301 } }] });
     if ((m = p.match(/^\/conversations\/(\d+)\/messages$/)) && req.method === 'POST') return send(201, { id: 10, body: 'секрет', status: 'sent' });
-    if (p === '/notifications/unread-count') return send(200, { count: 0 });
+    if (p === '/notifications/unread-count') {
+      if (S.drops > 0) { S.drops--; return req.socket.destroy(); }   // обрыв связи (Chromium сам повторяет GET один раз)
+      return send(200, { count: 0 });
+    }
+    if (p === '/people' && u.searchParams.get('search')) return send(200, { people: [] });
     if (p === '/friends/sent') return send(200, { meta: { total: S.pending.size } });
     if (p === '/people') {
       const off = +u.searchParams.get('offset'), lim = +u.searchParams.get('limit');
@@ -234,12 +238,15 @@ const tests = {
     const page = await openTab(ctx, base);
     await setup(page, { fields: { likes: 3 } });
     await runOnce(page);
-    await page.evaluate(() => { window.__gtawToday = '2099-01-02'; });
+    const [today, tomorrow] = await page.evaluate(() => [new Date().toLocaleDateString('sv'), new Date(Date.now() + 864e5).toLocaleDateString('sv')]);
+    await page.evaluate((t) => { window.__gtawToday = t; }, tomorrow);
     await $(page, 'likes').dispatchEvent('change');               // любое обновление панели
     const cnt = await shadow(page, 'return r.getElementById("cnt").textContent');
     const hist = await shadow(page, 'return r.getElementById("hist").textContent');
     expect(/лайки 0\//.test(cnt), `сегодня не с нуля: ${cnt}`);
-    expect(/02\.01\s+лайки\s+0/.test(hist) && /лайки\s+3\s+заявки\s+0/.test(hist) && /всего\s+лайки\s+3/.test(hist), `история:\n${hist}`);
+    const dm = (d) => `${d.slice(8, 10)}.${d.slice(5, 7)}`;
+    expect(new RegExp(`${dm(tomorrow)}\\s+лайки\\s+0`).test(hist) && new RegExp(`${dm(today)}\\s+лайки\\s+3\\s+заявки\\s+0`).test(hist)
+      && /всего\s+лайки\s+3/.test(hist), `история:\n${hist}`);
   },
 
   async 'запись запросов: адреса и поля без значений'(ctx, { base }) {
@@ -262,8 +269,145 @@ const tests = {
     expect(text.includes('"status":"=sent"') && text.includes('"unread_count":"num"'), `нет формы ответа:\n${text}`);
     expect(text.includes('GET /api/v1/conversations ?page={n}'), `нет списка чатов:\n${text}`);
     expect(text.includes('GET /api/v1/notifications/unread-count'), `XHR не записан:\n${text}`);
-    expect(/WS [^\n]*\/app\/abc123/.test(text), `WebSocket не записан:\n${text}`);
+    expect(/WS [^\n]*\/app\/\{id\}/.test(text), `WebSocket не записан:\n${text}`);
     expect(!/секрет/.test(text), 'в запись попал текст сообщения');
+  },
+
+  async 'запись запросов: ники, каналы и параметры поиска не попадают в текст'(ctx, { base }) {
+    const page = await openTab(ctx, base);
+    await shadow(page, 'r.getElementById("svcBox").open = true');
+    await $(page, 'rec').setChecked(true);
+    await $(page, 'rec').dispatchEvent('change');
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#gtawbot-host'));
+    await page.evaluate(async () => {
+      history.pushState(null, '', '/profile/Carlos_Mendez');
+      await (await fetch('/api/v1/people?search=Carlos_Mendez&sort=recent&limit=10')).json();
+      const ws = new WebSocket(location.origin.replace('http', 'ws') + '/app/abc123?token=Zx9_secret');
+      try { ws.send(JSON.stringify({ event: 'pusher:subscribe', data: { channel: 'private-App.Models.User.4821', auth: 'k' } })); } catch (_) {}
+    });
+    await page.waitForTimeout(800);
+    const text = await page.evaluate(() => window.__gtawInternals.recText());
+    expect(!/Carlos|Mendez|4821|Zx9|secret/.test(text), `в запись попали личные значения:\n${text}`);
+    expect(text.includes('search=str') && text.includes('sort=recent') && text.includes('стр. /profile'), `нет ожидаемых заглушек:\n${text}`);
+    expect(text.includes('out pusher:subscribe @private-App.Models.User.{id}'), `нет события WebSocket:\n${text}`);
+  },
+
+  async 'запись: выключение в одной вкладке не отменяется другой'(ctx, { base }) {
+    const a = await openTab(ctx, base);
+    await shadow(a, 'r.getElementById("svcBox").open = true');
+    await $(a, 'rec').setChecked(true);
+    await $(a, 'rec').dispatchEvent('change');
+    const b = await openTab(ctx, base);
+    await $(a, 'rec').setChecked(false);
+    await $(a, 'rec').dispatchEvent('change');
+    await b.waitForTimeout(300);
+    await b.evaluate(() => fetch('/api/v1/me').then((r) => r.json()));
+    await b.waitForTimeout(800);
+    const stored = await a.evaluate(() => JSON.parse(localStorage.getItem('gtawbot:rec')).on);
+    expect(stored === false, 'вторая вкладка снова включила запись');
+  },
+
+  async 'авторежим: галочка снята во время ожидания — повторов нет и после перезагрузки'(ctx, { S, base }) {
+    const page = await openTab(ctx, base);
+    await setup(page, { fields: { likes: 1, dLikes: 50, aMin: 60, aMax: 60 } });
+    await $(page, 'auto').setChecked(true);
+    await $(page, 'auto').dispatchEvent('change');
+    await $(page, 'start').click();
+    await page.waitForFunction(() => window.__gtawLogs.some((l) => /Следующий запуск/.test(l)));
+    await $(page, 'auto').setChecked(false);
+    await $(page, 'auto').dispatchEvent('change');
+    await waitIdle(page, 3000);
+    await page.reload();
+    await page.waitForFunction(() => !document.querySelector('#gtawbot-host').shadowRoot.getElementById('start').disabled);
+    await page.waitForTimeout(500);
+    const resumed = await page.evaluate(() => window.__gtawLogs.some((l) => /продолжаю после перезагрузки/.test(l)));
+    expect(!resumed && S.reacts.length === 1, `авторежим продолжился: resumed=${resumed}, лайков ${S.reacts.length}`);
+  },
+
+  async 'авторежим: правка настроек в другой вкладке не сбивает продолжение и его настройки'(ctx, { S, base }) {
+    const b = await openTab(ctx, base);                    // открыта до включения авторежима
+    const a = await openTab(ctx, base);
+    await setup(a, { fields: { likes: 1, dLikes: 50, aMin: 60, aMax: 60 } });
+    await $(a, 'auto').setChecked(true);
+    await $(a, 'auto').dispatchEvent('change');
+    await $(a, 'start').click();
+    await a.waitForFunction(() => window.__gtawLogs.some((l) => /Следующий запуск/.test(l)));
+    await $(b, 'likes').fill('7');
+    await $(b, 'likes').dispatchEvent('change');
+    await b.evaluate(() => document.querySelector('#gtawbot-host').shadowRoot.getElementById('hd').click());
+    const auto = await a.evaluate(() => JSON.parse(localStorage.getItem('gtawbot:auto')));
+    expect(auto.on === true && auto.opts.likes === 1, `другая вкладка испортила авторежим: ${JSON.stringify(auto)}`);
+    await a.reload();
+    await a.waitForFunction(() => window.__gtawLogs.some((l) => /продолжаю после перезагрузки/.test(l)), null, { timeout: 5000 });
+    const ui = await shadow(a, 'return { dry: r.getElementById("dry").checked, label: r.getElementById("start").textContent, likes: r.getElementById("likes").value }');
+    expect(!ui.dry && ui.label === 'Старт авторежима' && ui.likes === '1', `панель после продолжения: ${JSON.stringify(ui)}`);
+    await $(a, 'stop').click();
+    await waitIdle(a, 3000);
+  },
+
+  async 'авторежим: старая отметка вне рабочих часов не запускает сразу'(ctx, { S, base }) {
+    const page = await openTab(ctx, base);
+    await page.evaluate(() => {
+      const h = new Date().getHours();
+      localStorage.setItem('gtawbot:auto', JSON.stringify({ on: true, pid: '7', next: Date.now() - 3600e3,
+        opts: { likes: 1, dailyLikes: 50, friends: 0, minDelay: 0, maxDelay: 0, autoMin: 60, autoMax: 60, hourFrom: (h + 2) % 24, hourTo: (h + 3) % 24, auto: true } }));
+    });
+    await page.reload();
+    await page.waitForFunction(() => window.__gtawLogs.some((l) => /продолжаю после перезагрузки/.test(l)), null, { timeout: 5000 });
+    await page.waitForTimeout(1500);
+    const status = await shadow(page, 'return r.getElementById("status").textContent');
+    expect(S.reacts.length === 0 && /запуск в/.test(status), `запустился вне часов: лайков ${S.reacts.length}, статус «${status}»`);
+    await $(page, 'stop').click();
+    await waitIdle(page, 3000);
+  },
+
+  async 'авторежим: обрыв связи — повтор, а не выключение'(ctx, { S, base }) {
+    S.drops = 2;
+    const page = await openTab(ctx, base);
+    await setup(page, { fields: { likes: 1, dLikes: 50, aMin: 60, aMax: 60 } });
+    await $(page, 'auto').setChecked(true);
+    await $(page, 'auto').dispatchEvent('change');
+    await $(page, 'start').click();
+    await page.waitForFunction(() => window.__gtawLogs.some((l) => /нет связи, попробую снова/.test(l)), null, { timeout: 10000 });
+    await page.waitForFunction(() => window.__gtawLogs.some((l) => /Следующий запуск/.test(l)), null, { timeout: 15000 });
+    expect(S.reacts.length === 1, `после повтора лайков ${S.reacts.length}`);
+    await $(page, 'stop').click();
+    await waitIdle(page, 3000);
+  },
+
+  async 'смена персонажа во время ожидания авторежима: причина в логе'(ctx, { base }) {
+    const page = await openTab(ctx, base);
+    await setup(page, { fields: { likes: 1, dLikes: 50, aMin: 60, aMax: 60 } });
+    await $(page, 'auto').setChecked(true);
+    await $(page, 'auto').dispatchEvent('change');
+    await $(page, 'start').click();
+    await page.waitForFunction(() => window.__gtawLogs.some((l) => /Следующий запуск/.test(l)));
+    await page.evaluate(() => fetch('/api/v1/me', { headers: { 'X-Profile-Id': '8' } }));
+    await waitIdle(page, 3000);
+    expect((await logsFrom(page, 0)).some((l) => /СТОП: Сменился активный персонаж/.test(l)), 'причина остановки не залогирована');
+  },
+
+  async 'дата ушла назад (смена пояса): лимит не обнуляется'(ctx, { S, base }) {
+    const page = await openTab(ctx, base);
+    await setup(page, { fields: { likes: 2, dLikes: 2 } });
+    await runOnce(page);
+    await page.evaluate(() => { const d = new Date(Date.now() - 864e5); window.__gtawToday = d.toLocaleDateString('sv'); });
+    await runOnce(page);
+    await runOnce(page);
+    expect(S.reacts.length === 2, `лайков ${S.reacts.length} при дневном лимите 2`);
+  },
+
+  async 'уведомления запрещены: галочка снимается с объяснением'(ctx, { base }) {
+    const page = await openTab(ctx, base);
+    await page.evaluate(() => {
+      Object.defineProperty(Notification, 'permission', { get: () => 'default', configurable: true });
+      Notification.requestPermission = () => Promise.resolve('denied');
+    });
+    await shadow(page, 'r.getElementById("autoBox").open = true');
+    await $(page, 'notify').click();                         // галочка снимается сразу, поэтому не setChecked
+    await page.waitForFunction(() => window.__gtawLogs.some((l) => /запретил уведомления/.test(l)), null, { timeout: 3000 });
+    expect(!(await $(page, 'notify').isChecked()), 'галочка осталась включённой');
   },
 
   async 'панель перетаскивается и запоминает место'(ctx, { base }) {
@@ -282,7 +426,16 @@ const tests = {
     const after = await $(page, 'box').boundingBox();
     expect(Math.abs(after.x - moved.x) < 3 && Math.abs(after.y - moved.y) < 3, 'позиция не запомнилась');
     await hd.click();
+    await page.waitForTimeout(400);
     expect(await shadow(page, 'return r.getElementById("bd").classList.contains("off")'), 'щелчок по заголовку не свернул панель');
+    await hd.click();
+    await page.waitForTimeout(400);
+    await hd.dblclick();
+    await page.waitForTimeout(400);
+    const reset = await $(page, 'box').boundingBox();
+    const vp = page.viewportSize();
+    expect(Math.abs(reset.x + reset.width - (vp.width - 12)) < 3 && !(await shadow(page, 'return r.getElementById("bd").classList.contains("off")')),
+      `двойной щелчок: ${JSON.stringify(reset)}`);
   },
 
   async 'устаревшая лента: один пост не нажимается дважды'(ctx, { S, base }) {
