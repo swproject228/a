@@ -17,7 +17,7 @@ const PAGE = `<!doctype html><meta charset="utf-8"><title>mock</title>
 // ---------------------------------------------------------------- фейковый сервер
 function startMock() {
   const S = { reacted: new Set(), reacts: [], requests: [], pending: new Set(), refuse: new Set([122]),
-    retryAfter: null, staleFeed: false, peopleCount: 25, drops: 0 };
+    retryAfter: null, staleFeed: false, peopleCount: 25, drops: 0, hang: new Set() };
   const allPeople = () => {
     const people = [];
     for (let id = 101; id < 101 + S.peopleCount; id++) {
@@ -79,6 +79,7 @@ function startMock() {
     }
     if ((m = p.match(/^\/posts\/(\d+)\/react$/)) && req.method === 'POST') {
       if (S.retryAfter != null) return send(429, { message: 'Too Many Attempts.' }, { 'Retry-After': String(S.retryAfter) });
+      if (S.hang.has(+m[1])) { S.reacts.push(+m[1]); S.reacted.add(+m[1]); return; }   // лайк прошёл, а ответа нет
       const id = +m[1]; S.reacts.push(id);
       if (S.reacted.has(id)) S.reacted.delete(id); else S.reacted.add(id);   // реакция работает как переключатель
       return send(200, {});
@@ -123,6 +124,10 @@ async function runOnce(page, timeout) {
 const ids = (lines, re) => lines.map((l) => (l.match(re) || [])[1]).filter(Boolean);
 const dupes = (arr) => arr.filter((x, i) => arr.indexOf(x) !== i);
 function expect(cond, msg) { if (!cond) throw new Error(msg); }
+const autoOn = async (page) => { await $(page, 'auto').setChecked(true); await $(page, 'auto').dispatchEvent('change'); };
+const waitLog = (page, re, timeout = 10000) => page.waitForFunction((src) => window.__gtawLogs.some((l) => new RegExp(src).test(l)), re.source, { timeout });
+const readStore = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), key);
+
 
 // ---------------------------------------------------------------- тесты
 const tests = {
@@ -408,6 +413,141 @@ const tests = {
     await $(page, 'notify').click();                         // галочка снимается сразу, поэтому не setChecked
     await page.waitForFunction(() => window.__gtawLogs.some((l) => /запретил уведомления/.test(l)), null, { timeout: 3000 });
     expect(!(await $(page, 'notify').isChecked()), 'галочка осталась включённой');
+  },
+
+  async 'авторежим: галочка снята посреди прохода — перезагрузка его не возвращает'(ctx, { S, base }) {
+    const page = await openTab(ctx, base);
+    await setup(page, { fields: { likes: 3, dLikes: 50, dMin: 2, dMax: 2, aMin: 60, aMax: 60 } });
+    await autoOn(page);
+    await $(page, 'start').click();
+    await page.waitForFunction(() => window.__gtawLogs.some((l) => /лайк поста 1 /.test(l)));
+    await $(page, 'auto').setChecked(false);
+    await $(page, 'auto').dispatchEvent('change');
+    const rec = await readStore(page, 'gtawbot:auto');
+    expect(rec && rec.on === false, `сразу после снятия галочки: ${JSON.stringify(rec)}`);
+    await page.reload();
+    await page.waitForFunction(() => !document.querySelector('#gtawbot-host').shadowRoot.getElementById('start').disabled);
+    await page.waitForTimeout(500);
+    const resumed = await page.evaluate(() => window.__gtawLogs.some((l) => /продолжаю после перезагрузки/.test(l)));
+    expect(!resumed, 'авторежим вернулся после перезагрузки');
+  },
+
+  async 'авторежим: правка в этой же вкладке переживает перезагрузку'(ctx, { S, base }) {
+    const page = await openTab(ctx, base);
+    await setup(page, { fields: { likes: 1, dLikes: 50, aMin: 60, aMax: 60 } });
+    await autoOn(page);
+    await $(page, 'start').click();
+    await waitLog(page, /Следующий запуск/);
+    await $(page, 'ignore').fill('author3, author5');
+    await $(page, 'ignore').dispatchEvent('change');
+    await waitLog(page, /применятся со следующего запуска/);
+    await page.evaluate(() => {   // следующий запуск — сразу после перезагрузки
+      const a = JSON.parse(localStorage.getItem('gtawbot:auto')); a.next = Date.now(); localStorage.setItem('gtawbot:auto', JSON.stringify(a));
+    });
+    await page.reload();
+    await page.waitForFunction(() => window.__gtawLogs.filter((l) => /Следующий запуск/.test(l)).length >= 2, null, { timeout: 10000 });
+    expect(S.reacts.length === 2 && S.reacts[0] === 1, `лайкнуты: ${S.reacts}`);
+    expect(!S.reacts.includes(3) && !S.reacts.includes(5), `лайкнут игнорируемый автор: ${S.reacts}`);
+    const ign = await $(page, 'ignore').inputValue();
+    expect(ign === 'author3, author5', `панель после продолжения: «${ign}»`);
+    await $(page, 'stop').click();
+    await waitIdle(page, 3000);
+  },
+
+  async 'авторежим: таймаут POST не повторяется (лайк мог пройти)'(ctx, { S, base }) {
+    S.hang.add(1);
+    const page = await openTab(ctx, base);
+    await setup(page, { fields: { likes: 2, dLikes: 2, aMin: 60, aMax: 60 } });
+    await autoOn(page);
+    const out = await runOnce(page, 15000);
+    expect(out.some((l) => /не ответил/.test(l)) && !out.some((l) => /попробую снова/.test(l)) && out.some((l) => /Авторежим выключен/.test(l)),
+      `лог:\n${out.join('\n')}`);
+    expect(S.reacts.length === 1, `ушло лайков ${S.reacts.length}`);
+  },
+
+  async 'авторежим: галочка снята в другой вкладке — там больше не запускает'(ctx, { S, base }) {
+    const a = await openTab(ctx, base);
+    const b = await openTab(ctx, base);
+    await setup(a, { fields: { likes: 1, dLikes: 50, aMin: 60, aMax: 60 } });
+    await autoOn(a);
+    await $(a, 'start').click();
+    await waitLog(a, /Следующий запуск/);
+    await shadow(b, 'r.getElementById("autoBox").open = true');
+    await $(b, 'auto').setChecked(true);
+    await $(b, 'auto').dispatchEvent('change');
+    await $(b, 'auto').setChecked(false);
+    await $(b, 'auto').dispatchEvent('change');
+    await waitIdle(a, 3000);
+    expect((await logsFrom(a, 0)).some((l) => /выключен в другой вкладке/.test(l)), 'вкладка A не узнала об отмене');
+    expect((await readStore(a, 'gtawbot:auto')).on === false, 'запись авторежима осталась включённой');
+  },
+
+  async 'лог: сворачивание панели в другой вкладке его не стирает'(ctx, { base }) {
+    const b = await openTab(ctx, base);
+    const a = await openTab(ctx, base);
+    await setup(a, { fields: { likes: 2 } });
+    await runOnce(a);
+    const before = (await readStore(a, 'gtawbot:v1')).log.length;
+    await b.evaluate(() => document.querySelector('#gtawbot-host').shadowRoot.getElementById('hd').dispatchEvent(new PointerEvent('pointerdown', { button: 0 })));
+    await shadow(b, 'r.getElementById("hd").dispatchEvent(new PointerEvent("pointerup"))');
+    await b.waitForTimeout(500);
+    const st = await readStore(a, 'gtawbot:v1');
+    expect(st.collapsed === true && st.log.length >= before, `лог ${before} → ${st.log.length}, collapsed=${st.collapsed}`);
+  },
+
+  async 'настройки из другой вкладки доходят после окончания запуска'(ctx, { S, base }) {
+    const a = await openTab(ctx, base);
+    const b = await openTab(ctx, base);
+    await setup(a, { fields: { likes: 1, dLikes: 50, aMin: 60, aMax: 60 } });
+    await autoOn(a);
+    await $(a, 'start').click();
+    await waitLog(a, /Следующий запуск/);
+    await $(b, 'friends').fill('9');
+    await $(b, 'friends').dispatchEvent('change');
+    await $(a, 'stop').click();
+    await waitIdle(a, 3000);
+    expect((await $(a, 'friends').inputValue()) === '9', 'панель A не подхватила правку из B');
+    await $(a, 'dMax').fill('3');
+    await $(a, 'dMax').dispatchEvent('change');
+    expect((await readStore(a, 'gtawbot:v1')).settings.friends === 9, 'правка B затёрта');
+  },
+
+  async 'запись из двух вкладок сливается'(ctx, { base }) {
+    const a = await openTab(ctx, base);
+    const b = await openTab(ctx, base);                      // открыта до включения записи: WebSocket не перехвачен
+    await shadow(a, 'r.getElementById("svcBox").open = true');
+    await $(a, 'rec').setChecked(true);
+    await $(a, 'rec').dispatchEvent('change');
+    await b.waitForTimeout(300);
+    await Promise.all([
+      a.evaluate(() => fetch('/api/v1/notifications/unread-count').then((r) => r.json())),
+      b.evaluate(() => fetch('/api/v1/conversations/55/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': 'tok=1' }, body: '{"body":"x"}' }).then((r) => r.json())),
+    ]);
+    await a.waitForTimeout(1500);
+    const keys = Object.keys((await readStore(a, 'gtawbot:rec')).items);
+    expect(keys.includes('POST /api/v1/conversations/{id}/messages') && keys.includes('GET /api/v1/notifications/unread-count'), `в записи: ${keys}`);
+    const info = await shadow(b, 'return r.getElementById("recInfo").textContent');
+    expect(/Обнови эту вкладку/.test(info), `вкладка без перехвата WebSocket не предупреждает: «${info}»`);
+  },
+
+  async 'медленный двойной щелчок не сворачивает панель'(ctx, { base }) {
+    const page = await openTab(ctx, base);
+    const h0 = await $(page, 'hd').boundingBox();             // сначала переносим: заголовок перестаёт прыгать при сворачивании
+    await page.mouse.move(h0.x + 40, h0.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(h0.x - 160, h0.y - 40, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForTimeout(400);
+    const b = await $(page, 'hd').boundingBox();
+    const x = b.x + 40, y = b.y + 10;
+    await page.mouse.move(x, y);
+    await page.mouse.down(); await page.mouse.up();
+    await page.waitForTimeout(330);
+    await page.mouse.down({ clickCount: 2 }); await page.mouse.up({ clickCount: 2 });
+    await page.waitForTimeout(500);
+    expect(!(await shadow(page, 'return r.getElementById("bd").classList.contains("off")')), 'панель осталась свёрнутой');
+    const box = await $(page, 'box').boundingBox(), vp = page.viewportSize();
+    expect(Math.abs(box.x + box.width - (vp.width - 12)) < 3, `позиция не сброшена: ${JSON.stringify(box)}`);
   },
 
   async 'панель перетаскивается и запоминает место'(ctx, { base }) {
