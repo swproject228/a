@@ -1,0 +1,11 @@
+{
+  "name": "gtaw-fb-helper",
+  "private": true,
+  "description": "Юзерскрипт Facebrowser Helper для fbv2.gtaw.io и его автотест",
+  "scripts": {
+    "test": "node test/e2e.cjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  }
+}
