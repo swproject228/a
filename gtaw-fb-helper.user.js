@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Facebrowser Helper (GTA World)
 // @namespace    gtaw-fb-helper
-// @version      1.3.2
+// @version      1.4.0
 // @description  Лайки и заявки в друзья от имени текущего персонажа: лимиты, паузы, dry-run, авторежим, история. Работает в уже открытой и залогиненной вкладке.
 // @match        https://fbv2.gtaw.io/*
 // @run-at       document-start
@@ -14,7 +14,7 @@
   if (window.top !== window || window.__gtawBotLoaded) return;
   window.__gtawBotLoaded = true;
 
-  const VERSION = '1.3.2';
+  const VERSION = '1.4.0';
   const API = window.__GTAWBOT_API__ || 'https://fbv2-api.gtaw.io';
   const API_ORIGIN = new URL(API).origin;
   const V1 = API + '/api/v1';
@@ -24,7 +24,7 @@
   const LOCK = 'gtawbot:run';
   const TEST = !!window.__GTAWBOT_TEST__;
   const MIN_DELAY_FLOOR = TEST ? 0 : 5;            // сек, ниже нельзя
-  const HARD_MAX = { likes: 1000, friends: 500 };  // потолок дневных лимитов (поднять можно здесь)
+  const HARD_MAX = { likes: 1000, friends: 2000 }; // потолок дневных лимитов (поднять можно здесь)
   const GAP = TEST ? [0, 0] : [1.5, 4];            // пауза между служебными GET-запросами, сек
   const WARMUP_GAP = TEST ? [0, 0] : [3, 8];       // от лайка «перед заявкой» до самой заявки, сек
   const REQUEST_TIMEOUT = TEST ? 3 : 25;           // сек на один запрос
@@ -39,6 +39,7 @@
   const NET_RETRIES = 3, NET_RETRY_MIN = 5;        // авторежим при обрыве связи: 3 попытки раз в 5 мин
   const USER_STOP = 'Остановлено кнопкой.';
   const AUTO_OFF = 'Авторежим выключен галочкой.';
+  const PEOPLE_PAGES_MAX = 500;                   // глубже 5000 человек в списке «Люди» за запуск не листаем
   const DAY_MS = 864e5;
 
   // ------------------------------------------------------------------ утилиты
@@ -504,15 +505,18 @@
     return Number.isFinite(t) ? t : null;
   }
 
-  async function gatherPeople(want) {
+  // Следующая порция кандидатов: листаем список «Люди» с offset, пока не наберём около want × 3 человек.
+  // Большой план проходит порциями, поэтому заявки начинают уходить сразу, а не после обхода всего списка.
+  async function gatherPeople(want, offset, ids) {
     const PAGE = 10;
     const target = Math.max(want * 3, 20);
-    const maxPages = Math.min(60, Math.max(6, Math.ceil(target / PAGE) + 2));   // большой план: листаем дальше
-    const pool = [], ids = new Set();
-    let skippedSent = 0;
-    for (let i = 0; i < maxPages && pool.length < target; i++) {
+    const pages = Math.min(60, Math.max(6, Math.ceil(target / PAGE) + 2));
+    const pool = [];
+    let skippedSent = 0, end = false;
+    for (let i = 0; i < pages && pool.length < target; i++, offset += PAGE) {
+      if (offset >= PEOPLE_PAGES_MAX * PAGE) { end = true; break; }
       if (i) await gap();
-      const q = new URLSearchParams({ limit: PAGE, offset: i * PAGE, gender: 'all', exclude_friends: 'true',
+      const q = new URLSearchParams({ limit: PAGE, offset, gender: 'all', exclude_friends: 'true',
         exclude_requested: 'true', exclude_block_friend_requests: 'true', exclude_minors: 'true' });
       if (run.opts.onlineOnly) q.set('online', 'yes');
       const d = await get('/people?' + q);
@@ -526,13 +530,13 @@
         pool.push(p);
       }
       const total = Number(d.total);
-      if (people.length < PAGE || (Number.isFinite(total) && (i + 1) * PAGE >= total)) break;
+      if (people.length < PAGE || (Number.isFinite(total) && offset + PAGE >= total)) { end = true; offset += PAGE; break; }
     }
     if (skippedSent) log(`  пропущено ${skippedSent}: заявка им уже уходила за последние ${RESEND_DAYS} дн.`);
     // сначала онлайн и самые активные: у них выше шанс ответа
     pool.sort((a, b) => (Number(!!b.is_online) - Number(!!a.is_online)) ||
       String(b.last_activity_at || '').localeCompare(String(a.last_activity_at || '')));
-    return pool;
+    return { pool, offset, end };
   }
 
   async function warmup(p, name) {
@@ -559,31 +563,39 @@
       return;
     }
     if (pending != null) want = Math.min(want, o.maxPending - pending);
-    await gap();
-    setPhase('Заявки: ищу людей');
-    const pool = await gatherPeople(want);
-    log(`  подходящих кандидатов: ${pool.length}`);
-    let done = 0;
-    for (const p of pool) {
-      if (done >= want) break;
-      setPhase(`Заявки: ${done}/${want}`);
+    let done = 0, offset = 0, end = false;
+    const ids = new Set();
+    while (done < want && !end) {
       await gap();
-      const name = p.username || p.id;
-      const st = await get(`/friends/status/${p.id}`);
-      if (st.status !== 'none') continue;                 // уже друзья / заявка есть / блок
-      if (o.warmup && day(run.pid).likes < o.dailyLikes) await warmup(p, name);
-      if (run.dry) { log(`  [dry-run] заявка в друзья: ${name} (id ${p.id})`); done++; continue; }
-      await pace('заявка');
-      remember(p.id);                                     // даже при отказе второй раз не пробуем
-      const r = await api('POST', `/friends/request/${p.id}`);
-      if (ok(r.status)) {
-        refusals = 0; done++;
-        if (lastPending != null) lastPending++;
-        bump('friends');
-        log(`  заявка отправлена: ${name} (id ${p.id}) [${done}/${want}]`);
-        actedNow(o.minDelay, o.maxDelay);
-      } else await refused(r, name);
+      setPhase('Заявки: ищу людей');
+      const chunk = await gatherPeople(want - done, offset, ids);
+      const doneBefore = done;
+      end = chunk.end;
+      log(`  подходящих кандидатов: ${chunk.pool.length}${end ? '' : ' (дальше ещё будут)'}`);
+      for (const p of chunk.pool) {
+        if (done >= want) break;
+        setPhase(`Заявки: ${done}/${want}`);
+        await gap();
+        const name = p.username || p.id;
+        const st = await get(`/friends/status/${p.id}`);
+        if (st.status !== 'none') continue;                 // уже друзья / заявка есть / блок
+        if (o.warmup && day(run.pid).likes < o.dailyLikes) await warmup(p, name);
+        if (run.dry) { log(`  [dry-run] заявка в друзья: ${name} (id ${p.id})`); done++; continue; }
+        await pace('заявка');
+        remember(p.id);                                     // даже при отказе второй раз не пробуем
+        const r = await api('POST', `/friends/request/${p.id}`);
+        if (ok(r.status)) {
+          refusals = 0; done++;
+          if (lastPending != null) lastPending++;
+          bump('friends');
+          log(`  заявка отправлена: ${name} (id ${p.id}) [${done}/${want}]`);
+          actedNow(o.minDelay, o.maxDelay);
+        } else await refused(r, name);
+      }
+      // сайт убирает из списка тех, кому ушла заявка, и список сдвигается: отступаем на столько же (повторы отсеет ids)
+      offset = Math.max(0, chunk.offset - (run.dry ? 0 : done - doneBefore));
     }
+    if (done < want) log('  подходящие люди в списке закончились');
     log(`Заявки в друзья: ${run.dry ? 'в плане' : 'отправлено'} ${done}`);
   }
 
@@ -778,6 +790,150 @@
     start(opts, false, a.next);
   }
 
+  // ------------------------------------------------------------------ распознавание личных сообщений
+  // Что человек написал (приветствие, «как дела», комплимент, зовёт встретиться, грубит, спрашивает «ты бот?»…)
+  // и что на это ответить. Работает по словарю фраз прямо в браузере, без внешних сервисов.
+  // Бот отвечает только на короткие «светские» сообщения и не больше dmMax раз за переписку. Всё остальное он
+  // передаёт тебе: вопрос «ты бот?» (врать нельзя), 18+, признаки несовершеннолетнего, грубость, приглашение
+  // встретиться и любое сообщение, которое он не понял.
+  const DM_LABEL = { minor: 'несовершеннолетний', sexual: '18+', bot: '«ты бот?»', rude: 'грубость или «не пиши»',
+    meet: 'зовёт встретиться', who: 'кто ты / зачем добавил', how: 'как дела', doing: 'чем занят', compliment: 'комплимент',
+    meetme: 'знакомство', thanks: 'спасибо', bye: 'прощание', laugh: 'смех', emoji: 'смайлики', greeting: 'приветствие' };
+  const DM_STOP = ['minor', 'sexual', 'bot', 'rude'];                         // никогда не отвечаем сами
+  const DM_ORDER = ['meet', 'who', 'how', 'doing', 'compliment', 'meetme', 'thanks', 'bye', 'laugh', 'emoji', 'greeting'];
+  const DM_WORDS = {   // '=' в начале: слово целиком; '~': фраза целиком, без продолжения («как ты?», но не «как ты думаешь»);
+                       // иначе начало слова. Повторы букв («приииивет») не важны.
+    minor: ['школьни', 'несовершеннолет', 'учусь в школе', 'в школу хожу', 'мне тринадцать', 'мне четырнадцать', 'мне пятнадцать',
+      'мне шестнадцать', 'мне семнадцать', 'underage', 'high school', 'middle school', 'schoolgirl', 'schoolboy', "i'm thirteen",
+      "i'm fourteen", "i'm fifteen", "i'm sixteen", "i'm seventeen", 'im sixteen', 'im fifteen', 'im seventeen'],
+    sexual: ['секс', 'интим', 'нюдс', '=нюдсы', 'обнаж', 'разденься', 'раздевайся', 'трах', 'переспим', 'переспать', 'минет', 'пошлост',
+      'голая', 'голую', 'голенькая', 'сиськ', '=секси фото', '=sex', 'sexy pic', '=nudes', '=nude', 'naked', 'horny', 'fuck me', '=18+'],
+    bot: ['ты бот', 'это бот', '=бот', 'автоответ', 'ты робот', 'ты живая', 'ты живой', 'ты реальн', 'ты настоящ', 'нейросет',
+      'are you a bot', 'is this a bot', '=bot', 'are you real', 'auto reply', 'autoreply', 'chatgpt', '=gpt', '=ai'],
+    rude: ['иди нах', 'пошел нах', 'пошла нах', 'отвали', 'отстань', 'отъебись', '=дура', '=дурак', 'тупая', 'тупой', '=сука', 'спам',
+      'заебал', 'надоел', 'не пиши', 'хватит писать', 'отпишись', 'блок', 'кинул в чс', 'fuck off', 'stop texting', 'stop spamming',
+      '=spam', 'leave me alone', '=idiot', '=stupid', 'go away', "don't text", 'dont text'],
+    meet: ['встретимся', 'встретиться', 'давай встрет', 'увидимся', 'погуляем', 'погулять', 'свидани', 'пойдем в', 'пойдём в', 'пошли в',
+      'сходим', 'приезжай', 'приходи', 'в бар', 'в клуб', 'на кофе', 'в кино', 'заеду за', '=meet', 'meet up', 'hang out', 'grab a drink',
+      'go out', '=date', 'come over', 'pick you up'],
+    who: ['мы знакомы', '~ты кто', '~кто ты', '~кто это', 'кто ты такая', 'кто ты такой', 'зачем добавил', 'зачем добавила', 'почему добавил', 'почему добавила',
+      'зачем заявк', 'откуда ты меня', 'who are you', 'do i know you', 'why did you add', 'who is this', 'who dis', 'do we know'],
+    how: ['как дела', '~как ты', '~как сам', '~как сама', 'как жизнь', 'как поживаешь', 'как настроение', 'как твои дела', '~как оно',
+      'kak dela', 'how are you', 'how r u', 'how are u', "how's it going", 'hows it going', 'how is it going', "what's up", 'whats up',
+      'wassup', '=sup', 'how you doing'],
+    doing: ['что делаешь', 'чем занимаешься', 'чем занята', 'чем занят', 'че делаешь', 'чё делаешь', 'что делаеш', 'шо делаешь',
+      'what are you doing', 'what you doing', 'what r u doing', '=wyd', 'what are you up to'],
+    compliment: ['красив', 'красотк', 'краса', 'милая', 'милый', 'милаш', 'симпатичн', 'очарователь', 'прекрасн', 'шикарн', 'обалденн',
+      'нравишься', 'понравил', 'клевая', 'клёвая', 'классная', 'классные фот', 'крутая фот', 'красивые фот', 'лапочк', 'солнышко',
+      'beautiful', '=pretty', '=cute', 'cutie', 'gorgeous', '=hot', 'stunning', 'i like you', 'nice pic', 'nice photo', 'lovely'],
+    meetme: ['познаком', 'кто ты по', 'кем работаешь', 'как тебя зовут', 'как зовут', 'как твое имя', 'как твоё имя', 'откуда ты', 'чем увлекаешься', 'расскажи о себе',
+      'get to know', "what's your name", 'whats your name', 'where are you from', 'nice to meet', 'tell me about yourself'],
+    thanks: ['спасибо', '=спс', 'благодар', '=мерси', 'пасиб', 'сенкс', 'spasibo', 'thank', '=thx', '=ty', '=tysm'],
+    bye: ['=пока', 'пока-пока', 'до встречи', 'до завтра', 'спокойной ночи', '=споки', 'сладких снов', 'доброй ночи', 'всего доброго',
+      '=poka', '=bye', 'goodbye', 'good night', '=gn', 'see you', 'see ya', '=cya', 'talk later', 'ttyl'],
+    laugh: ['ахах', 'хаха', '=хах', '=лол', '=ржу', '=lol', '=lmao', 'haha', 'hehe', '=xd'],
+    greeting: ['привет', 'превет', '=прив', '=приф', 'прифк', 'здравствуй', 'здраствуй', 'здрасьте', 'здрасте', 'здарова', 'дратути', '=хай',
+      'хаюшки', 'хелоу', 'хеллоу', 'добрый день', 'добрый вечер', 'доброе утро', 'доброго дня', '=ку', '=куку', '=салют', '=йоу', '=хей',
+      'privet', '=hai', '=hi', '=hello', '=hey', 'heya', 'hiya', 'good morning', 'good evening', 'good afternoon', '=yo', 'howdy'],
+  };
+  const DM_TRANSLIT = /\b(privet|kak dela|spasibo|poka|zdravstv)/;   // пишет по-русски латиницей: отвечаем по-русски
+  // Ответы: {мужской|женский} подставляется по полу персонажа; flirt — лёгкий флирт, neutral — без него.
+  const DM_REPLIES = {
+    ru: {
+      greeting: { flirt: ['Привет 😊', 'Приветик 😉', 'Привет-привет 😏', 'Хай) Какими судьбами?', 'Хай 😉', 'Ну привет 😊 Неожиданно, но приятно',
+        'Здравствуйте) Какой приятный сюрприз 😊'], neutral: ['Привет 🙂', 'Привет!', 'Здравствуйте 🙂', 'Хай)'] },
+      how: { flirt: ['Всё хорошо, а теперь ещё лучше 😉 А у тебя как?', 'Отлично 😊 А у тебя как дела?', 'Неплохо) Рассказывай, как у тебя?'],
+        neutral: ['Всё хорошо, спасибо 🙂 А у тебя?', 'Нормально) А у тебя как?'] },
+      doing: { flirt: ['Да так, отдыхаю 😊 А ты?', 'Листаю ленту, а тут ты 😉', 'Ничего особенного) А ты что делаешь?'],
+        neutral: ['Да так, ничего особенного 🙂 А ты?', 'Отдыхаю) А ты?'] },
+      compliment: { flirt: ['Ой, спасибо 😊 Приятно', 'Смущаешь 🙈', 'Спасибо) Мне очень приятно 😉'], neutral: ['Спасибо 🙂', 'Спасибо, приятно)'] },
+      meetme: { flirt: ['Давай 😊 Расскажи о себе', 'С удовольствием) С чего начнём? 😉'], neutral: ['Давай 🙂 Расскажи о себе', 'Можно) Расскажи о себе'] },
+      who: { flirt: ['Увидел{|а} твой профиль и решил{|а} добавиться 😊', 'Просто понравился твой профиль 😉'],
+        neutral: ['Увидел{|а} твой профиль и решил{|а} добавиться 🙂', 'Просто наткнул{ся|ась} на твой профиль)'] },
+      meet: { flirt: ['Может быть 😏 Давай сначала немного пообщаемся', 'Посмотрим 😉 Напиши чуть позже, договоримся'],
+        neutral: ['Давай чуть позже обсудим 🙂', 'Напиши попозже, договоримся)'] },
+      thanks: { flirt: ['Пожалуйста 😊', 'Обращайся 😉'], neutral: ['Пожалуйста 🙂', 'Не за что)'] },
+      bye: { flirt: ['Пока 😊', 'До встречи 😉', 'Пока-пока 😊'], neutral: ['Пока 🙂', 'До связи)'] },
+      byeNight: { flirt: ['Спокойной ночи 🌙', 'Сладких снов 😊'], neutral: ['Спокойной ночи 🙂'] },
+      laugh: { flirt: ['😄', '😏', 'Ахах)'], neutral: ['🙂', 'Ахах)'] },
+      emoji: { flirt: ['😊', '😉'], neutral: ['🙂'] },
+      hello: { flirt: ['Привет)', 'Приветик)', 'Хай)'], neutral: ['Привет!', 'Здравствуйте!'] },
+    },
+    en: {
+      greeting: { flirt: ['Hi 😊', 'Hey there 😉', 'Hey! What brings you here? 😊'], neutral: ['Hi 🙂', 'Hello!'] },
+      how: { flirt: ["I'm good, even better now 😉 How about you?", 'Doing great 😊 You?'], neutral: ["I'm fine, thanks 🙂 You?"] },
+      doing: { flirt: ['Just chilling 😊 You?', 'Scrolling the feed, and here you are 😉'], neutral: ['Not much 🙂 You?'] },
+      compliment: { flirt: ['Aww, thank you 😊', "You're making me blush 🙈"], neutral: ['Thank you 🙂'] },
+      meetme: { flirt: ['Sure 😊 Tell me about yourself'], neutral: ['Sure 🙂 Tell me about yourself'] },
+      who: { flirt: ['Saw your profile and decided to add you 😊'], neutral: ['Saw your profile and decided to add you 🙂'] },
+      meet: { flirt: ["Maybe 😏 Let's chat a bit first", "We'll see 😉 Text me a bit later"], neutral: ["Let's talk about it later 🙂"] },
+      thanks: { flirt: ["You're welcome 😊"], neutral: ['No problem 🙂'] },
+      bye: { flirt: ['Bye 😊', 'See you 😉'], neutral: ['Bye 🙂'] },
+      byeNight: { flirt: ['Good night 🌙'], neutral: ['Good night 🙂'] },
+      laugh: { flirt: ['😄', 'Haha)'], neutral: ['🙂'] },
+      emoji: { flirt: ['😊', '😉'], neutral: ['🙂'] },
+      hello: { flirt: ['Hey)', 'Hi)'], neutral: ['Hi!'] },
+    },
+  };
+  const squeeze = (t) => String(t).toLowerCase().replace(/ё/g, 'е').replace(/(\p{L})\1+/gu, '$1');   // «приииивет» → «привет»
+  const DM_RX = {};
+  for (const [intent, words] of Object.entries(DM_WORDS)) {
+    const alts = words.map((w) => {
+      const mark = '=~'.includes(w[0]) ? w[0] : '';
+      const body = squeeze(mark ? w.slice(1) : w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '[\\s,.!-]*');
+      return body + (mark === '=' ? '(?![\\p{L}\\p{N}])' : mark === '~' ? '(?![\\p{L}\\p{N}])(?!\\s+[\\p{L}\\p{N}])' : '');
+    });
+    DM_RX[intent] = new RegExp(`(?:^|[^\\p{L}\\p{N}])(?:${alts.join('|')})`, 'u');
+  }
+  const AGE_MINOR = /(?:^|[^\p{L}\p{N}])(?:мне|i'?m|i am|im)\s*(?:[5-9]|1[0-7])(?![\p{N}.,])(?!\s*(?:мин|час|сек|раз|руб|штук|см|км|кг|\$|min|hour|sec|times|ft|cm|km|kg|[kкh](?![\p{L}])))/u;
+  const GRADE = /(?:^|[^\p{L}\p{N}])(?:в\s*)?(?:[5-9]|1[01])\s*(?:-?(?:м|ом|ый|ой))?\s*класс/u;
+
+  function dmDetect(text) {
+    const raw = String(text || '');
+    const t = squeeze(raw);
+    const found = new Set();
+    for (const [intent, re] of Object.entries(DM_RX)) if (re.test(t)) found.add(intent);
+    if (AGE_MINOR.test(t) || GRADE.test(t)) found.add('minor');
+    const bare = raw.replace(/[\s.,!?)(:;*-]+/g, '');
+    if (!found.size && raw.trim() && !/[\p{L}\p{N}]/u.test(bare)) found.add(/😂|🤣|😆|😹/u.test(raw) ? 'laugh' : 'emoji');
+    const cyr = /[а-яё]/i.test(raw);
+    const lang = cyr || DM_TRANSLIT.test(t) ? 'ru' : (/[a-z]/i.test(raw) ? 'en' : 'ru');
+    return { intents: found, lang, question: raw.includes('?') };
+  }
+
+  // conv: { n: сколько автоответов уже было, stop: почему переписка передана тебе, used: [ответы] }
+  function dmPlan(text, conv, o, now) {
+    const d = dmDetect(text);
+    const labels = [...d.intents].map((k) => DM_LABEL[k] || k);
+    const out = (action, reason, reply) => ({ action, reason, reply: reply || '', intents: labels, lang: d.lang });
+    if (conv.stop) return out('skip', `переписка уже у тебя: ${conv.stop}`);
+    const stopper = DM_STOP.find((k) => d.intents.has(k));
+    if (stopper) return out('handoff', { minor: 'похоже на несовершеннолетнего: бот не отвечает', sexual: 'откровенное сообщение: бот не отвечает',
+      bot: 'спросили, бот ли это: ответь сам, бот не притворяется человеком', rude: 'грубость или просьба не писать: бот замолкает' }[stopper]);
+    if (conv.n >= o.dmMax) return out('handoff', `бот уже ответил ${conv.n} раз: дальше переписка твоя`);
+    const main = DM_ORDER.find((k) => d.intents.has(k));
+    if (!main) return out('handoff', d.question ? 'вопрос без готового ответа: ответь сам' : 'не понял сообщение: ответь сам');
+    if (main === 'greeting' && conv.n > 0) return out('skip', 'уже здоровались');
+    const tone = o.dmTone === 'neutral' ? 'neutral' : 'flirt';
+    const L = DM_REPLIES[d.lang] || DM_REPLIES.ru;
+    const night = new Date(now || Date.now()).getHours() >= 22 || new Date(now || Date.now()).getHours() < 5;
+    const pool = (L[main === 'bye' && night ? 'byeNight' : main] || L.greeting)[tone];
+    const used = conv.used || [];
+    const fresh = pool.filter((x) => !used.includes(x));
+    let reply = (fresh.length ? fresh : pool)[Math.floor(Math.random() * (fresh.length ? fresh : pool).length)];
+    if (main !== 'greeting' && d.intents.has('greeting') && conv.n === 0 && !['laugh', 'emoji', 'bye'].includes(main)) {
+      const hello = L.hello[tone];
+      reply = hello[Math.floor(Math.random() * hello.length)] + ' ' + reply;
+    }
+    reply = reply.replace(/\{([^|{}]*)\|([^|{}]*)\}/g, (_, m, f) => (o.dmGender === 'm' ? m : f));
+    return out(main === 'meet' ? 'reply-handoff' : 'reply', main === 'meet' ? 'зовут встретиться: ответил уклончиво, дальше ты' : '', reply);
+  }
+  function dmCommit(conv, plan) {
+    if (plan.action === 'reply' || plan.action === 'reply-handoff') { conv.n = (conv.n || 0) + 1; conv.used = [...(conv.used || []), plan.reply].slice(-6); }
+    if (plan.action === 'handoff' || plan.action === 'reply-handoff') conv.stop = plan.reason;
+    return conv;
+  }
+
   // ------------------------------------------------------------------ панель
   const CSS = `
     :host{all:initial}
@@ -835,6 +991,17 @@
         <div class="btns"><button id="start">Старт</button><button id="stop" disabled>Стоп</button><button id="copy" class="sm" title="Скопировать лог">Лог</button><button id="clear" class="sm" title="Очистить лог">✕</button></div>
         <pre id="log"></pre>
         <details id="histBox"><summary>История за ${HIST_DAYS} дн.</summary><pre id="hist"></pre></details>
+        <details id="dmBox"><summary>Автоответы в ЛС</summary>
+          <label class="ck"><input id="dmOn" type="checkbox" disabled> Отвечать сам (включится, когда подключу чат по записи запросов)</label>
+          <div class="row">
+            <label>Пол персонажа<select id="dmGender"><option value="f">женский</option><option value="m">мужской</option></select></label>
+            <label>Тон<select id="dmTone"><option value="flirt">лёгкий флирт</option><option value="neutral">нейтральный</option></select></label>
+            <label>Ответов на переписку<input id="dmMax" type="number" min="1" max="5"></label>
+          </div>
+          <label>Проверка: что тебе написали<textarea id="dmTest" rows="2" spellcheck="false" placeholder="например: приииивет, как дела?"></textarea></label>
+          <div class="btns"><button id="dmTry" class="sm">Что ответит бот</button><button id="dmReset" class="sm">Новая переписка</button></div>
+          <pre id="dmOut"></pre>
+        </details>
         <details id="svcBox"><summary>Запись запросов сайта</summary>
           <label class="ck"><input id="rec" type="checkbox"> Записывать (для настройки автоответов)</label>
           <div class="st" id="recInfo"></div>
@@ -844,7 +1011,7 @@
     </div>`;
   const DEFAULTS = { likes: 15, friends: 5, dailyLikes: 60, dailyFriends: 25, minDelay: 15, maxDelay: 45, maxPending: 200,
     reaction: 'like', warmup: false, onlineOnly: true, ignore: '',
-    auto: false, autoMin: 30, autoMax: 60, hourFrom: 0, hourTo: 24, notify: false };
+    auto: false, autoMin: 30, autoMax: 60, hourFrom: 0, hourTo: 24, notify: false, dmGender: 'f', dmTone: 'flirt', dmMax: 2 };
 
   function readOpts() {
     const s = Object.assign({}, DEFAULTS, state.settings);
@@ -864,6 +1031,8 @@
       autoMin, autoMax: Math.max(autoMin, num(ui.aMax.value, s.autoMax, AUTO_FLOOR, 1440)),
       hourFrom: num(ui.hFrom.value, s.hourFrom, 0, 23), hourTo: num(ui.hTo.value, s.hourTo, 0, 24),
       notify: ui.notify.checked,
+      dmGender: ui.dmGender.value === 'm' ? 'm' : 'f', dmTone: ui.dmTone.value === 'neutral' ? 'neutral' : 'flirt',
+      dmMax: num(ui.dmMax.value, s.dmMax, 1, 5),
     };
   }
   // показываем в полях то, что реально будет использовано (после ограничений)
@@ -873,6 +1042,7 @@
     ui.react.value = s.reaction; ui.warm.checked = !!s.warmup; ui.online.checked = !!s.onlineOnly; ui.ignore.value = s.ignore || '';
     ui.auto.checked = !!s.auto; ui.aMin.value = s.autoMin; ui.aMax.value = s.autoMax;
     ui.hFrom.value = s.hourFrom; ui.hTo.value = s.hourTo; ui.notify.checked = !!s.notify;
+    ui.dmGender.value = s.dmGender === 'm' ? 'm' : 'f'; ui.dmTone.value = s.dmTone === 'neutral' ? 'neutral' : 'flirt'; ui.dmMax.value = s.dmMax;
   }
 
   function paintHist() {
@@ -969,7 +1139,8 @@
     ui = {};
     ['box', 'hd', 'bd', 'tg', 'autoBox', 'pid', 'cnt', 'status', 'likes', 'friends', 'dLikes', 'dFriends', 'dMin', 'dMax', 'maxPend', 'react',
       'ignore', 'dry', 'warm', 'online', 'auto', 'aMin', 'aMax', 'hFrom', 'hTo', 'notify', 'start', 'stop', 'copy', 'clear',
-      'log', 'hist', 'rec', 'recInfo', 'recCopy', 'recClear'].forEach((id) => { ui[id] = $(id); });
+      'log', 'hist', 'rec', 'recInfo', 'recCopy', 'recClear', 'dmGender', 'dmTone', 'dmMax', 'dmTest', 'dmTry', 'dmReset', 'dmOut']
+      .forEach((id) => { ui[id] = $(id); });
     fillInputs(Object.assign({}, DEFAULTS, state.settings));
     if (ui.auto.checked) ui.autoBox.open = true;
     paintStart();
@@ -1021,7 +1192,18 @@
     host.addEventListener('focusout', () => setTimeout(() => adoptSettings(false), 0));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) adoptSettings(false); });
     [ui.likes, ui.friends, ui.dLikes, ui.dFriends, ui.dMin, ui.dMax, ui.maxPend, ui.react, ui.ignore, ui.warm, ui.online,
-      ui.auto, ui.aMin, ui.aMax, ui.hFrom, ui.hTo, ui.notify].forEach((el) => el.addEventListener('change', persist));
+      ui.auto, ui.aMin, ui.aMax, ui.hFrom, ui.hTo, ui.notify, ui.dmGender, ui.dmTone, ui.dmMax].forEach((el) => el.addEventListener('change', persist));
+    let testConv = {};   // переписка для проверки в панели: можно написать несколько сообщений подряд
+    ui.dmTry.addEventListener('click', () => {
+      const text = ui.dmTest.value.trim();
+      if (!text) return;
+      const plan = dmPlan(text, testConv, readOpts());
+      dmCommit(testConv, plan);
+      const head = `Распознано: ${plan.intents.length ? plan.intents.join(' + ') : 'ничего'}${plan.lang === 'en' ? ' (англ.)' : ''}`;
+      const body = plan.reply ? `Ответ: ${plan.reply}${plan.reason ? `\n${plan.reason}` : ''}` : `Не отвечает: ${plan.reason}`;
+      ui.dmOut.textContent = `${head}\n${body}\nАвтоответов в этой переписке: ${testConv.n || 0}`;
+    });
+    ui.dmReset.addEventListener('click', () => { testConv = {}; ui.dmOut.textContent = 'Новая переписка.'; });
     ui.dry.addEventListener('change', paintStart);
     ui.notify.addEventListener('change', async () => {
       if (!ui.notify.checked) return;
@@ -1098,7 +1280,7 @@
     refreshCounters();
   });
 
-  if (TEST) window.__gtawInternals = { inHours, nextWindowStart, mergeProfiles, shape, tmplPath, recText, rec: () => rec };   // только для автотестов
+  if (TEST) window.__gtawInternals = { inHours, nextWindowStart, mergeProfiles, shape, tmplPath, recText, rec: () => rec, dmDetect, dmPlan, dmCommit };   // только для автотестов
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
   else mount();

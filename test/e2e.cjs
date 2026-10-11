@@ -17,7 +17,7 @@ const PAGE = `<!doctype html><meta charset="utf-8"><title>mock</title>
 // ---------------------------------------------------------------- фейковый сервер
 function startMock() {
   const S = { reacted: new Set(), reacts: [], requests: [], pending: new Set(), refuse: new Set([122]),
-    retryAfter: null, staleFeed: false, peopleCount: 25, drops: 0, hang: new Set() };
+    retryAfter: null, staleFeed: false, peopleCount: 25, drops: 0, hang: new Set(), peopleCalls: 0 };
   const allPeople = () => {
     const people = [];
     for (let id = 101; id < 101 + S.peopleCount; id++) {
@@ -59,6 +59,7 @@ function startMock() {
     if (p === '/friends/sent') return send(200, { meta: { total: S.pending.size } });
     if (p === '/people') {
       const off = +u.searchParams.get('offset'), lim = +u.searchParams.get('limit');
+      S.peopleCalls++;
       const list = allPeople().filter((x) => !S.pending.has(x.id));
       const from = off ? off - 1 : 0;                       // список «съезжает» на одного между страницами
       return send(200, { people: list.slice(from, from + lim) });   // поле total не отдаём
@@ -576,6 +577,44 @@ const tests = {
     const vp = page.viewportSize();
     expect(Math.abs(reset.x + reset.width - (vp.width - 12)) < 3 && !(await shadow(page, 'return r.getElementById("bd").classList.contains("off")')),
       `двойной щелчок: ${JSON.stringify(reset)}`);
+  },
+
+  async 'потолок заявок 2000 и план больше одной порции кандидатов'(ctx, { S, base }) {
+    S.peopleCount = 800; S.refuse.clear();
+    const page = await openTab(ctx, base);
+    await setup(page, { fields: { friends: 650, dFriends: 1500, maxPend: 5000 } });
+    expect((await $(page, 'dFriends').inputValue()) === '1500', 'потолок 1500 урезан');
+    await $(page, 'dFriends').fill('99999');
+    await $(page, 'dFriends').dispatchEvent('change');
+    expect((await $(page, 'dFriends').inputValue()) === '2000', 'потолок не 2000');
+    const out = await runOnce(page, 120000);
+    expect(S.requests.length === 650 && !dupes(S.requests).length, `заявок ${S.requests.length}; лог:\n${out.slice(-4).join('\n')}`);
+    expect(S.peopleCalls > 60, `не было второй порции кандидатов: запросов списка ${S.peopleCalls} (порция — максимум 60)`);
+  },
+
+  async 'автоответы: проверка в панели распознаёт и отвечает'(ctx, { base }) {
+    const page = await openTab(ctx, base);
+    await shadow(page, 'r.getElementById("dmBox").open = true');
+    const ask = async (text) => {
+      await $(page, 'dmTest').fill(text);
+      await $(page, 'dmTry').click();
+      return $(page, 'dmOut').textContent();
+    };
+    let out = await ask('приииивет, как дела?');
+    expect(/приветствие/.test(out) && /как дела/.test(out) && /Ответ: /.test(out), `ответ на приветствие:\n${out}`);
+    out = await ask('ты бот?');
+    expect(/Не отвечает: спросили, бот ли это/.test(out), `вопрос «ты бот?»:\n${out}`);
+    out = await ask('привет');
+    expect(/Не отвечает: переписка уже у тебя/.test(out), `после передачи бот должен молчать:\n${out}`);
+    await $(page, 'dmReset').click();
+    await $(page, 'dmGender').selectOption('m');
+    await $(page, 'dmGender').dispatchEvent('change');
+    for (let i = 0; i < 5; i++) {
+      out = await ask('кто ты?');
+      if (/Увидел твой/.test(out)) break;
+      await $(page, 'dmReset').click();
+    }
+    expect(/Ответ: (Привет[)!]? )?(Увидел твой профиль и решил|Просто)/.test(out) && !/\{/.test(out), `мужской род:\n${out}`);
   },
 
   async 'устаревшая лента: один пост не нажимается дважды'(ctx, { S, base }) {
