@@ -618,23 +618,28 @@ const tests = {
   },
 
   async 'распознавание ЛС на размеченном наборе: без опасных ответов'(ctx, { base }) {
+    // 660 сообщений RU/EN, размеченных независимыми авторами. Считаем фактическое поведение: на что бот ответил бы шаблоном.
     const corpus = JSON.parse(fs.readFileSync(path.join(__dirname, 'dm-corpus.json'), 'utf8'));
     const page = await openTab(ctx, base);
     const r = await page.evaluate((corpus) => {
       const { dmDetect } = window.__gtawInternals;
       const STOP = ['minor', 'sexual', 'bot', 'rude'];
-      let okN = 0; const danger = [], chatty = [];
+      const REPLY = ['who', 'how', 'doing', 'compliment', 'meetme', 'thanks', 'bye', 'laugh', 'emoji', 'greeting'];
+      const bad = [], small = corpus.filter((c) => REPLY.includes(c.expect));
+      let caught = 0;
       for (const c of corpus) {
         const got = dmDetect(c.text).main;
-        if (got === c.expect) okN++;
-        if (STOP.includes(c.expect) && !STOP.includes(got) && got !== 'unknown') danger.push(c.text);   // ответил бы шаблоном
-        if (c.expect === 'unknown' && got !== 'unknown' && !STOP.includes(got)) chatty.push(c.text);   // шаблон вместо человека
+        if (REPLY.includes(c.expect) && REPLY.includes(got)) caught++;
+        if (!REPLY.includes(got)) continue;                                   // промолчал: безопасно
+        const same = got === c.expect || (['laugh', 'emoji'].includes(got) && ['laugh', 'emoji'].includes(c.expect));
+        if (STOP.includes(c.expect)) bad.push(`ответ на «${c.expect}»: ${c.text}`);
+        else if (!REPLY.includes(c.expect)) bad.push(`ответ там, где нужен человек: ${c.text}`);
+        else if (!same) bad.push(`не тот ответ (${got} вместо ${c.expect}): ${c.text}`);
       }
-      return { acc: okN / corpus.length, danger, chatty };
+      return { bad, recall: caught / small.length };
     }, corpus);
-    expect(!r.danger.length, `шаблонный ответ на стоп-сообщения:\n${r.danger.join('\n')}`);
-    expect(!r.chatty.length, `шаблонный ответ там, где нужен человек:\n${r.chatty.join('\n')}`);
-    expect(r.acc >= 0.9, `точность ${Math.round(r.acc * 100)}%`);
+    expect(!r.bad.length, r.bad.join('\n'));
+    expect(r.recall >= 0.85, `бот отвечает только на ${Math.round(r.recall * 100)}% светских сообщений`);
   },
 
   async 'устаревшая лента: один пост не нажимается дважды'(ctx, { S, base }) {

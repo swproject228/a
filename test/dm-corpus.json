@@ -2398,5 +2398,905 @@
 "text": "мой друг пишет чат-бота для магазина, хочешь потестить?",
 "expect": "unknown",
 "style": "holdout-ru-mixed"
+},
+{
+"text": "cant talk long my mom takes my phone at 10 on school nights",
+"expect": "minor",
+"style": "h2-en-varied"
+},
+{
+"text": "Good evening. I am in 9th grade but everyone says I act mature for my age, what is your name?",
+"expect": "minor",
+"style": "h2-en-varied"
+},
+{
+"text": "bro my teacher took my phone in chem class lol anyway u tryna hop on the server tonight",
+"expect": "minor",
+"style": "h2-en-varied"
+},
+{
+"text": "i turn 16 in march so technicaly im almost adult",
+"expect": "minor",
+"style": "h2-en-varied"
+},
+{
+"text": "send pic of what ur wearing rn 😏",
+"expect": "sexual",
+"style": "h2-en-varied"
+},
+{
+"text": "u look like u know how to have fun at night if u know what i mean 🍆",
+"expect": "sexual",
+"style": "h2-en-varied"
+},
+{
+"text": "wanna come over tonight and keep me warm no clothes needed",
+"expect": "sexual",
+"style": "h2-en-varied"
+},
+{
+"text": "is this a real person typing or some auto reply thing",
+"expect": "bot",
+"style": "h2-en-varied"
+},
+{
+"text": "Excuse me, am I corresponding with a human being or a computer program?",
+"expect": "bot",
+"style": "h2-en-varied"
+},
+{
+"text": "u answered in 2 seconds flat, u a script or what",
+"expect": "bot",
+"style": "h2-en-varied"
+},
+{
+"text": "be honest are u chatgpt",
+"expect": "bot",
+"style": "h2-en-varied"
+},
+{
+"text": "why do u keep spamming my inbox stop it",
+"expect": "rude",
+"style": "h2-en-varied"
+},
+{
+"text": "ur so annoying fr one more msg and ur blocked",
+"expect": "rude",
+"style": "h2-en-varied"
+},
+{
+"text": "Please stop writing to me. I am not interested.",
+"expect": "rude",
+"style": "h2-en-varied"
+},
+{
+"text": "you are clown man, nobody was ask you",
+"expect": "rude",
+"style": "h2-en-varied"
+},
+{
+"text": "theres a car meet at the pier saturday u should roll with me",
+"expect": "meet",
+"style": "h2-en-varied"
+},
+{
+"text": "Would you care to grab a coffee sometime if you are ever near Leeds?",
+"expect": "meet",
+"style": "h2-en-varied"
+},
+{
+"text": "we go cinema together this weekend? i pay",
+"expect": "meet",
+"style": "h2-en-varied"
+},
+{
+"text": "hey hey come join me n the boys at the bowling alley later",
+"expect": "meet",
+"style": "h2-en-varied"
+},
+{
+"text": "sorry do i know u from somewhere",
+"expect": "who",
+"style": "h2-en-varied"
+},
+{
+"text": "Who might you be? I do not recall accepting a request from you.",
+"expect": "who",
+"style": "h2-en-varied"
+},
+{
+"text": "why u add me tho",
+"expect": "who",
+"style": "h2-en-varied"
+},
+{
+"text": "hello. who is this",
+"expect": "who",
+"style": "h2-en-varied"
+},
+{
+"text": "yo hows life treating u",
+"expect": "how",
+"style": "h2-en-varied"
+},
+{
+"text": "How have you been keeping, dear?",
+"expect": "how",
+"style": "h2-en-varied"
+},
+{
+"text": "hi how is your day going so far",
+"expect": "how",
+"style": "h2-en-varied"
+},
+{
+"text": "how u holding up",
+"expect": "how",
+"style": "h2-en-varied"
+},
+{
+"text": "wyd",
+"expect": "doing",
+"style": "h2-en-varied"
+},
+{
+"text": "what are you up to right now",
+"expect": "doing",
+"style": "h2-en-varied"
+},
+{
+"text": "yo what are you doing right now im bored",
+"expect": "doing",
+"style": "h2-en-varied"
+},
+{
+"text": "so what you busy with in this moment",
+"expect": "doing",
+"style": "h2-en-varied"
+},
+{
+"text": "your profile pic is honestly stunning",
+"expect": "compliment",
+"style": "h2-en-varied"
+},
+{
+"text": "that jacket in ur last photo goes hard ngl",
+"expect": "compliment",
+"style": "h2-en-varied"
+},
+{
+"text": "You have very beautiful eyes, I must say.",
+"expect": "compliment",
+"style": "h2-en-varied"
+},
+{
+"text": "nice drip in the new pic 🔥",
+"expect": "compliment",
+"style": "h2-en-varied"
+},
+{
+"text": "where u from originally",
+"expect": "meetme",
+"style": "h2-en-varied"
+},
+{
+"text": "So what do you do for a living, if you don't mind me asking?",
+"expect": "meetme",
+"style": "h2-en-varied"
+},
+{
+"text": "tell me something about urself i wanna know u better",
+"expect": "meetme",
+"style": "h2-en-varied"
+},
+{
+"text": "how old r u btw",
+"expect": "meetme",
+"style": "h2-en-varied"
+},
+{
+"text": "do you have some hobby? me i like fishing and gym",
+"expect": "meetme",
+"style": "h2-en-varied"
+},
+{
+"text": "appreciate it man",
+"expect": "thanks",
+"style": "h2-en-varied"
+},
+{
+"text": "Thank you kindly.",
+"expect": "thanks",
+"style": "h2-en-varied"
+},
+{
+"text": "thx a lot bro",
+"expect": "thanks",
+"style": "h2-en-varied"
+},
+{
+"text": "gotta dip, catch u later",
+"expect": "bye",
+"style": "h2-en-varied"
+},
+{
+"text": "Good night, take care.",
+"expect": "bye",
+"style": "h2-en-varied"
+},
+{
+"text": "ok i go sleep now see you",
+"expect": "bye",
+"style": "h2-en-varied"
+},
+{
+"text": "hahahahaha",
+"expect": "laugh",
+"style": "h2-en-varied"
+},
+{
+"text": "LMAOOO",
+"expect": "laugh",
+"style": "h2-en-varied"
+},
+{
+"text": "lmfao",
+"expect": "laugh",
+"style": "h2-en-varied"
+},
+{
+"text": "))))",
+"expect": "emoji",
+"style": "h2-en-varied"
+},
+{
+"text": "👍",
+"expect": "emoji",
+"style": "h2-en-varied"
+},
+{
+"text": "🙂🙂",
+"expect": "emoji",
+"style": "h2-en-varied"
+},
+{
+"text": "hii",
+"expect": "greeting",
+"style": "h2-en-varied"
+},
+{
+"text": "Good afternoon to you",
+"expect": "greeting",
+"style": "h2-en-varied"
+},
+{
+"text": "yo yo",
+"expect": "greeting",
+"style": "h2-en-varied"
+},
+{
+"text": "can u lend me 50k in game ill pay back friday",
+"expect": "unknown",
+"style": "h2-en-varied"
+},
+{
+"text": "check out my crew server discord.gg/ls-nights",
+"expect": "unknown",
+"style": "h2-en-varied"
+},
+{
+"text": "do u know when the next whitelist wave opens",
+"expect": "unknown",
+"style": "h2-en-varied"
+},
+{
+"text": "what u think about the new police update too strict or no",
+"expect": "unknown",
+"style": "h2-en-varied"
+},
+{
+"text": "so yesterday my car got stolen by some guy in a clown mask and the cops didnt even show up",
+"expect": "unknown",
+"style": "h2-en-varied"
+},
+{
+"text": "can't chat long, my mom takes my phone at 9 on school nights",
+"expect": "minor",
+"style": "h2-en-tricky"
+},
+{
+"text": "top of the morning to ya",
+"expect": "greeting",
+"style": "h2-en-tricky"
+},
+{
+"text": "my buddies and I are playing 18 holes saturday morning, want to join?",
+"expect": "meet",
+"style": "h2-en-tricky"
+},
+{
+"text": "send me something you'd never post on your main 😏",
+"expect": "sexual",
+"style": "h2-en-tricky"
+},
+{
+"text": "am I talking to an actual human or one of those auto-reply things?",
+"expect": "bot",
+"style": "h2-en-tricky"
+},
+{
+"text": "even to the naked eye it's obvious you've got great style",
+"expect": "compliment",
+"style": "h2-en-tricky"
+},
+{
+"text": "I'm building a Discord bot in Python and it keeps disconnecting, any idea why?",
+"expect": "unknown",
+"style": "h2-en-tricky"
+},
+{
+"text": "ugh mr. davis gave our whole 3rd period a pop quiz today",
+"expect": "minor",
+"style": "h2-en-tricky"
+},
+{
+"text": "quit flooding my inbox with this garbage",
+"expect": "rude",
+"style": "h2-en-tricky"
+},
+{
+"text": "how's life treating you these days?",
+"expect": "how",
+"style": "h2-en-tricky"
+},
+{
+"text": ")))",
+"expect": "emoji",
+"style": "h2-en-tricky"
+},
+{
+"text": "I do AI research at a startup, what's your line of work?",
+"expect": "meetme",
+"style": "h2-en-tricky"
+},
+{
+"text": "sorry, have we crossed paths before? I can't place you",
+"expect": "who",
+"style": "h2-en-tricky"
+},
+{
+"text": "what are you wearing right now... or not wearing 😉",
+"expect": "sexual",
+"style": "h2-en-tricky"
+},
+{
+"text": "hahahahaha",
+"expect": "laugh",
+"style": "h2-en-tricky"
+},
+{
+"text": "what's up? turning 16 next month btw 🎉",
+"expect": "minor",
+"style": "h2-en-tricky"
+},
+{
+"text": "that red dress is HOT 🔥 seriously stunning",
+"expect": "compliment",
+"style": "h2-en-tricky"
+},
+{
+"text": "my high school reunion is next week and my ex will be there, I'm so nervous",
+"expect": "unknown",
+"style": "h2-en-tricky"
+},
+{
+"text": "you answer suspiciously fast... are you flesh and blood?",
+"expect": "bot",
+"style": "h2-en-tricky"
+},
+{
+"text": "gotta run, catch you later",
+"expect": "bye",
+"style": "h2-en-tricky"
+},
+{
+"text": "what are you up to rn?",
+"expect": "doing",
+"style": "h2-en-tricky"
+},
+{
+"text": "there's a jazz night at the Blue Room on friday, wanna come with?",
+"expect": "meet",
+"style": "h2-en-tricky"
+},
+{
+"text": "appreciate it, truly",
+"expect": "thanks",
+"style": "h2-en-tricky"
+},
+{
+"text": "you're honestly the most boring person on this app",
+"expect": "rude",
+"style": "h2-en-tricky"
+},
+{
+"text": "what do you do for a living? I teach high school chemistry myself",
+"expect": "meetme",
+"style": "h2-en-tricky"
+},
+{
+"text": "home alone tonight and the bed feels way too big 🍑",
+"expect": "sexual",
+"style": "h2-en-tricky"
+},
+{
+"text": "wanna meet saturday? I'm not allowed out past 8 till I start high school",
+"expect": "minor",
+"style": "h2-en-tricky"
+},
+{
+"text": "howdy",
+"expect": "greeting",
+"style": "h2-en-tricky"
+},
+{
+"text": "my 18th wedding anniversary is coming up, any gift ideas?",
+"expect": "unknown",
+"style": "h2-en-tricky"
+},
+{
+"text": "do I know you from the gym or something?",
+"expect": "who",
+"style": "h2-en-tricky"
+},
+{
+"text": "🔥🔥🔥",
+"expect": "emoji",
+"style": "h2-en-tricky"
+},
+{
+"text": "is this account run by ChatGPT or something",
+"expect": "bot",
+"style": "h2-en-tricky"
+},
+{
+"text": "wassup, how's your week shaping up?",
+"expect": "how",
+"style": "h2-en-tricky"
+},
+{
+"text": "watcha doing this fine evening",
+"expect": "doing",
+"style": "h2-en-tricky"
+},
+{
+"text": "that hat in your third pic is a whole vibe",
+"expect": "compliment",
+"style": "h2-en-tricky"
+},
+{
+"text": "night night, talk tmrw",
+"expect": "bye",
+"style": "h2-en-tricky"
+},
+{
+"text": "lol is this a bot? my brother says I'm too young for this app, I'm only in 7th grade",
+"expect": "minor",
+"style": "h2-en-tricky"
+},
+{
+"text": "coffee sometime? I know a spot with amazing flat whites",
+"expect": "meet",
+"style": "h2-en-tricky"
+},
+{
+"text": "cheers for the add!",
+"expect": "thanks",
+"style": "h2-en-tricky"
+},
+{
+"text": "one more message and I'm reporting and blocking you",
+"expect": "rude",
+"style": "h2-en-tricky"
+},
+{
+"text": "so where are you originally from?",
+"expect": "meetme",
+"style": "h2-en-tricky"
+},
+{
+"text": "hot take: the new Dune movie was overrated, change my mind",
+"expect": "unknown",
+"style": "h2-en-tricky"
+},
+{
+"text": "come over tonight, we can skip the movie part 😏",
+"expect": "sexual",
+"style": "h2-en-tricky"
+},
+{
+"text": "lmaooo",
+"expect": "laugh",
+"style": "h2-en-tricky"
+},
+{
+"text": "and you are...?",
+"expect": "who",
+"style": "h2-en-tricky"
+},
+{
+"text": "prove you're real: what color are your socks right now?",
+"expect": "bot",
+"style": "h2-en-tricky"
+},
+{
+"text": "hiii 👋",
+"expect": "greeting",
+"style": "h2-en-tricky"
+},
+{
+"text": "can you lend me $50 till friday? I'll pay you back I swear",
+"expect": "unknown",
+"style": "h2-en-tricky"
+},
+{
+"text": "hey hey, you holding up ok?",
+"expect": "how",
+"style": "h2-en-tricky"
+},
+{
+"text": "you're really cute 😳 is it weird that I'm 15?",
+"expect": "minor",
+"style": "h2-en-tricky"
+},
+{
+"text": "busy with anything fun at the moment?",
+"expect": "doing",
+"style": "h2-en-tricky"
+},
+{
+"text": "you could easily be a model, no joke",
+"expect": "compliment",
+"style": "h2-en-tricky"
+},
+{
+"text": "this reeks of a scam account, get lost",
+"expect": "rude",
+"style": "h2-en-tricky"
+},
+{
+"text": "😊👋",
+"expect": "emoji",
+"style": "h2-en-tricky"
+},
+{
+"text": "how old are you, if you don't mind me asking?",
+"expect": "meetme",
+"style": "h2-en-tricky"
+},
+{
+"text": "got a spare ticket for the Lakers game tomorrow, you in?",
+"expect": "meet",
+"style": "h2-en-tricky"
+},
+{
+"text": "ty ty 🙏",
+"expect": "thanks",
+"style": "h2-en-tricky"
+},
+{
+"text": "check this link and tell me what you think: bit.ly/3xQ9kz",
+"expect": "unknown",
+"style": "h2-en-tricky"
+},
+{
+"text": "heading to bed, sweet dreams",
+"expect": "bye",
+"style": "h2-en-tricky"
+},
+{
+"text": "my daughter starts kindergarten tomorrow and I'm a wreck lol",
+"expect": "unknown",
+"style": "h2-en-tricky"
+},
+{
+"text": "ку) мне 14 если что,это норм?",
+"expect": "minor",
+"style": "h2-ru-varied"
+},
+{
+"text": "привет",
+"expect": "greeting",
+"style": "h2-ru-varied"
+},
+{
+"text": "ты бот?",
+"expect": "bot",
+"style": "h2-ru-varied"
+},
+{
+"text": "скинешь чего-нибудь погорячее? 😏🔥",
+"expect": "sexual",
+"style": "h2-ru-varied"
+},
+{
+"text": "как дела?",
+"expect": "how",
+"style": "h2-ru-varied"
+},
+{
+"text": "отстань, хватит мне писать",
+"expect": "rude",
+"style": "h2-ru-varied"
+},
+{
+"text": "привет! пойдём завтра на каток?",
+"expect": "meet",
+"style": "h2-ru-varied"
+},
+{
+"text": "а вы кто?",
+"expect": "who",
+"style": "h2-ru-varied"
+},
+{
+"text": "че делаешь щас",
+"expect": "doing",
+"style": "h2-ru-varied"
+},
+{
+"text": "у тебя очень красивая улыбка на аватарке",
+"expect": "compliment",
+"style": "h2-ru-varied"
+},
+{
+"text": "как тебя зовут? ты откуда?",
+"expect": "meetme",
+"style": "h2-ru-varied"
+},
+{
+"text": "спасибо)",
+"expect": "thanks",
+"style": "h2-ru-varied"
+},
+{
+"text": "ладно, пока",
+"expect": "bye",
+"style": "h2-ru-varied"
+},
+{
+"text": "ахахахах",
+"expect": "laugh",
+"style": "h2-ru-varied"
+},
+{
+"text": "😂😂😂",
+"expect": "emoji",
+"style": "h2-ru-varied"
+},
+{
+"text": "можешь скинуть 500 на карту до пятницы? верну",
+"expect": "unknown",
+"style": "h2-ru-varied"
+},
+{
+"text": "мне мама не разрешает переписываться с незнакомыми, вы кто вообще?",
+"expect": "minor",
+"style": "h2-ru-varied"
+},
+{
+"text": "Это автоответчик или со мной живой человек переписывается?",
+"expect": "bot",
+"style": "h2-ru-varied"
+},
+{
+"text": "давай без лишних слов, ищу на одну ночь",
+"expect": "sexual",
+"style": "h2-ru-varied"
+},
+{
+"text": "ку,как оно?",
+"expect": "how",
+"style": "h2-ru-varied"
+},
+{
+"text": "очередной спамер, кидаю жалобу и в бан",
+"expect": "rude",
+"style": "h2-ru-varied"
+},
+{
+"text": "Может, выпьем кофе на неделе? Я рядом с Тверской работаю",
+"expect": "meet",
+"style": "h2-ru-varied"
+},
+{
+"text": "зачем ты меня добавил?",
+"expect": "who",
+"style": "h2-ru-varied"
+},
+{
+"text": "что делаешь? я вот скучаю на работе",
+"expect": "doing",
+"style": "h2-ru-varied"
+},
+{
+"text": "фото с моря шикарное, загар огонь 🔥",
+"expect": "compliment",
+"style": "h2-ru-varied"
+},
+{
+"text": "Я учительница в школе, а вы кем работаете?",
+"expect": "meetme",
+"style": "h2-ru-varied"
+},
+{
+"text": "spasibo bolshoe!",
+"expect": "thanks",
+"style": "h2-ru-varied"
+},
+{
+"text": "спокойной ночи, завтра напишу",
+"expect": "bye",
+"style": "h2-ru-varied"
+},
+{
+"text": "ХАХАХА ржу",
+"expect": "laugh",
+"style": "h2-ru-varied"
+},
+{
+"text": ")))",
+"expect": "emoji",
+"style": "h2-ru-varied"
+},
+{
+"text": "Добрый вечер!",
+"expect": "greeting",
+"style": "h2-ru-varied"
+},
+{
+"text": "а ты не мог бы помочь бота в телеге настроить?",
+"expect": "unknown",
+"style": "h2-ru-varied"
+},
+{
+"text": "го гулять после уроков?у нас завтра шесть уроков но я успею",
+"expect": "minor",
+"style": "h2-ru-varied"
+},
+{
+"text": "ty realnyi chelovek ili skript kakoy-to?",
+"expect": "bot",
+"style": "h2-ru-varied"
+},
+{
+"text": "а ты в чем сейчас одета? 😈",
+"expect": "sexual",
+"style": "h2-ru-varied"
+},
+{
+"text": "чо каво",
+"expect": "how",
+"style": "h2-ru-varied"
+},
+{
+"text": "еще одно сообщение и блокирую",
+"expect": "rude",
+"style": "h2-ru-varied"
+},
+{
+"text": "давай встретимся,погуляем по набережной",
+"expect": "meet",
+"style": "h2-ru-varied"
+},
+{
+"text": "мы знакомы? что-то не припомню",
+"expect": "who",
+"style": "h2-ru-varied"
+},
+{
+"text": "chem zanyat seichas?",
+"expect": "doing",
+"style": "h2-ru-varied"
+},
+{
+"text": "стильно одеваешься, прям зачёт",
+"expect": "compliment",
+"style": "h2-ru-varied"
+},
+{
+"text": "сколько тебе лет?",
+"expect": "meetme",
+"style": "h2-ru-varied"
+},
+{
+"text": "пасиб, очень приятно",
+"expect": "thanks",
+"style": "h2-ru-varied"
+},
+{
+"text": "давай, до связи",
+"expect": "bye",
+"style": "h2-ru-varied"
+},
+{
+"text": "ахах лол",
+"expect": "laugh",
+"style": "h2-ru-varied"
+},
+{
+"text": "🙈❤️",
+"expect": "emoji",
+"style": "h2-ru-varied"
+},
+{
+"text": "ку",
+"expect": "greeting",
+"style": "h2-ru-varied"
+},
+{
+"text": "проголосуй за меня в конкурсе плиз, ссылка в профиле",
+"expect": "unknown",
+"style": "h2-ru-varied"
+},
+{
+"text": "privet, ya v 8 klasse, a ty gde uchishsya?",
+"expect": "minor",
+"style": "h2-ru-varied"
+},
+{
+"text": "ты бот? достал уже спамить мне каждый день",
+"expect": "bot",
+"style": "h2-ru-varied"
+},
+{
+"text": "приезжай ко мне вечером, вино есть, кровать большая 😉",
+"expect": "sexual",
+"style": "h2-ru-varied"
+},
+{
+"text": "как дела, что делаешь?",
+"expect": "how",
+"style": "h2-ru-varied"
+},
+{
+"text": "ты дебил? я тебя не знаю и знать не хочу",
+"expect": "rude",
+"style": "h2-ru-varied"
+},
+{
+"text": "pognali v bar segodnya vecherom",
+"expect": "meet",
+"style": "h2-ru-varied"
+},
+{
+"text": "Здравствуйте. Откуда у вас мой контакт, мы разве общались?",
+"expect": "who",
+"style": "h2-ru-varied"
+},
+{
+"text": "расскажи о себе,чем увлекаешься",
+"expect": "meetme",
+"style": "h2-ru-varied"
+},
+{
+"text": "у сына завтра контрольная по алгебре, не знаешь хорошего репетитора?",
+"expect": "unknown",
+"style": "h2-ru-varied"
+},
+{
+"text": "сорян что пропала, классуха телефон забрала на алгебре",
+"expect": "minor",
+"style": "h2-ru-varied"
+},
+{
+"text": "кто ты по знаку зодиака?",
+"expect": "meetme",
+"style": "h2-ru-varied"
+},
+{
+"text": "что думаешь про новый альбом Земфиры?",
+"expect": "unknown",
+"style": "h2-ru-varied"
 }
 ]
