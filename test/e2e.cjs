@@ -617,6 +617,26 @@ const tests = {
     expect(/Ответ: (Привет[)!]? )?(Увидел твой профиль и решил|Просто)/.test(out) && !/\{/.test(out), `мужской род:\n${out}`);
   },
 
+  async 'распознавание ЛС на размеченном наборе: без опасных ответов'(ctx, { base }) {
+    const corpus = JSON.parse(fs.readFileSync(path.join(__dirname, 'dm-corpus.json'), 'utf8'));
+    const page = await openTab(ctx, base);
+    const r = await page.evaluate((corpus) => {
+      const { dmDetect } = window.__gtawInternals;
+      const STOP = ['minor', 'sexual', 'bot', 'rude'];
+      let okN = 0; const danger = [], chatty = [];
+      for (const c of corpus) {
+        const got = dmDetect(c.text).main;
+        if (got === c.expect) okN++;
+        if (STOP.includes(c.expect) && !STOP.includes(got) && got !== 'unknown') danger.push(c.text);   // ответил бы шаблоном
+        if (c.expect === 'unknown' && got !== 'unknown' && !STOP.includes(got)) chatty.push(c.text);   // шаблон вместо человека
+      }
+      return { acc: okN / corpus.length, danger, chatty };
+    }, corpus);
+    expect(!r.danger.length, `шаблонный ответ на стоп-сообщения:\n${r.danger.join('\n')}`);
+    expect(!r.chatty.length, `шаблонный ответ там, где нужен человек:\n${r.chatty.join('\n')}`);
+    expect(r.acc >= 0.9, `точность ${Math.round(r.acc * 100)}%`);
+  },
+
   async 'устаревшая лента: один пост не нажимается дважды'(ctx, { S, base }) {
     S.staleFeed = true;
     const page = await openTab(ctx, base);
