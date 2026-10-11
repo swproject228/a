@@ -1498,5 +1498,905 @@
 "text": "Мне вчера 18 исполнилось, до сих пор отхожу после праздника",
 "expect": "unknown",
 "style": "ru-edge"
+},
+{
+"text": "im 16 btw hope thats ok lol",
+"expect": "minor",
+"style": "holdout-en-mixed"
+},
+{
+"text": "brb my mom says i gotta finish my 9th grade science project",
+"expect": "minor",
+"style": "holdout-en-mixed"
+},
+{
+"text": "yo im a junior in high school, u play on the server too?",
+"expect": "minor",
+"style": "holdout-en-mixed"
+},
+{
+"text": "im only 15 but can we still hang at the mall in game?",
+"expect": "minor",
+"style": "holdout-en-mixed"
+},
+{
+"text": "wanna sext? 😏",
+"expect": "sexual",
+"style": "holdout-en-mixed"
+},
+{
+"text": "ur so hot, send me something spicy without the clothes",
+"expect": "sexual",
+"style": "holdout-en-mixed"
+},
+{
+"text": "u down to hook up tonight no strings",
+"expect": "sexual",
+"style": "holdout-en-mixed"
+},
+{
+"text": "r u even a real person or is this automated",
+"expect": "bot",
+"style": "holdout-en-mixed"
+},
+{
+"text": "be honest am i talking to an AI rn",
+"expect": "bot",
+"style": "holdout-en-mixed"
+},
+{
+"text": "lol is this a bot? cuz ur spamming me nonstop",
+"expect": "bot",
+"style": "holdout-en-mixed"
+},
+{
+"text": "bro quit blowing up my dms",
+"expect": "rude",
+"style": "holdout-en-mixed"
+},
+{
+"text": "ur actually so annoying, blocking u",
+"expect": "rude",
+"style": "holdout-en-mixed"
+},
+{
+"text": "another spammer smh. reported",
+"expect": "rude",
+"style": "holdout-en-mixed"
+},
+{
+"text": "nobody wants ur messages clown",
+"expect": "rude",
+"style": "holdout-en-mixed"
+},
+{
+"text": "lemme take u out to dinner at the pier sometime",
+"expect": "meet",
+"style": "holdout-en-mixed"
+},
+{
+"text": "pull up to bahama mamas tonight, me and the crew will be there",
+"expect": "meet",
+"style": "holdout-en-mixed"
+},
+{
+"text": "wanna go for a drive up to paleto bay later?",
+"expect": "meet",
+"style": "holdout-en-mixed"
+},
+{
+"text": "yo we should link up irl if ur ever in chicago",
+"expect": "meet",
+"style": "holdout-en-mixed"
+},
+{
+"text": "who dis",
+"expect": "who",
+"style": "holdout-en-mixed"
+},
+{
+"text": "um do i know u from somewhere?",
+"expect": "who",
+"style": "holdout-en-mixed"
+},
+{
+"text": "why'd u add me lol",
+"expect": "who",
+"style": "holdout-en-mixed"
+},
+{
+"text": "sorry, who are you exactly? whats ur name",
+"expect": "who",
+"style": "holdout-en-mixed"
+},
+{
+"text": "yo whats good",
+"expect": "how",
+"style": "holdout-en-mixed"
+},
+{
+"text": "how u been?",
+"expect": "how",
+"style": "holdout-en-mixed"
+},
+{
+"text": "heyy hows ur day goin",
+"expect": "how",
+"style": "holdout-en-mixed"
+},
+{
+"text": "hey hows it going, wyd",
+"expect": "how",
+"style": "holdout-en-mixed"
+},
+{
+"text": "wyd",
+"expect": "doing",
+"style": "holdout-en-mixed"
+},
+{
+"text": "whatchu up to rn",
+"expect": "doing",
+"style": "holdout-en-mixed"
+},
+{
+"text": "hiii what r u doing tonight?",
+"expect": "doing",
+"style": "holdout-en-mixed"
+},
+{
+"text": "u busy? what u doin",
+"expect": "doing",
+"style": "holdout-en-mixed"
+},
+{
+"text": "ur gorgeous fr",
+"expect": "compliment",
+"style": "holdout-en-mixed"
+},
+{
+"text": "that new pfp is fire 🔥",
+"expect": "compliment",
+"style": "holdout-en-mixed"
+},
+{
+"text": "damn u got the prettiest smile on this whole site",
+"expect": "compliment",
+"style": "holdout-en-mixed"
+},
+{
+"text": "hey cutie, love ur style",
+"expect": "compliment",
+"style": "holdout-en-mixed"
+},
+{
+"text": "where u from originally?",
+"expect": "meetme",
+"style": "holdout-en-mixed"
+},
+{
+"text": "so what do u do for work, u a cop or something?",
+"expect": "meetme",
+"style": "holdout-en-mixed"
+},
+{
+"text": "how old r u if u dont mind me asking",
+"expect": "meetme",
+"style": "holdout-en-mixed"
+},
+{
+"text": "tell me a lil about urself",
+"expect": "meetme",
+"style": "holdout-en-mixed"
+},
+{
+"text": "ty!!",
+"expect": "thanks",
+"style": "holdout-en-mixed"
+},
+{
+"text": "appreciate it fr",
+"expect": "thanks",
+"style": "holdout-en-mixed"
+},
+{
+"text": "thanks a ton, u didnt have to do that",
+"expect": "thanks",
+"style": "holdout-en-mixed"
+},
+{
+"text": "aight im out, gn",
+"expect": "bye",
+"style": "holdout-en-mixed"
+},
+{
+"text": "gotta run, ttyl",
+"expect": "bye",
+"style": "holdout-en-mixed"
+},
+{
+"text": "catch u later 👋",
+"expect": "bye",
+"style": "holdout-en-mixed"
+},
+{
+"text": "lmaooo",
+"expect": "laugh",
+"style": "holdout-en-mixed"
+},
+{
+"text": "hahahahaha",
+"expect": "laugh",
+"style": "holdout-en-mixed"
+},
+{
+"text": "lololol",
+"expect": "laugh",
+"style": "holdout-en-mixed"
+},
+{
+"text": "🔥🔥🔥",
+"expect": "emoji",
+"style": "holdout-en-mixed"
+},
+{
+"text": ")))",
+"expect": "emoji",
+"style": "holdout-en-mixed"
+},
+{
+"text": "👀",
+"expect": "emoji",
+"style": "holdout-en-mixed"
+},
+{
+"text": "heyyy",
+"expect": "greeting",
+"style": "holdout-en-mixed"
+},
+{
+"text": "good morning!",
+"expect": "greeting",
+"style": "holdout-en-mixed"
+},
+{
+"text": "hello there",
+"expect": "greeting",
+"style": "holdout-en-mixed"
+},
+{
+"text": "can u spot me 5k til friday? ill pay u back",
+"expect": "unknown",
+"style": "holdout-en-mixed"
+},
+{
+"text": "u still selling that sultan rs? how much",
+"expect": "unknown",
+"style": "holdout-en-mixed"
+},
+{
+"text": "check this out lsnews.net/story/2231",
+"expect": "unknown",
+"style": "holdout-en-mixed"
+},
+{
+"text": "my guy just got arrested and lost all his stuff, idk if i should restart the character",
+"expect": "unknown",
+"style": "holdout-en-mixed"
+},
+{
+"text": "do u know if the bank heist is still bugged after the update",
+"expect": "unknown",
+"style": "holdout-en-mixed"
+},
+{
+"text": "can u vouch for me with the mechanic shop owner? tryna get hired there",
+"expect": "unknown",
+"style": "holdout-en-mixed"
+},
+{
+"text": "is ur gang recruiting rn?",
+"expect": "unknown",
+"style": "holdout-en-mixed"
+},
+{
+"text": "hey! my mom doesn't know i have this app lol, i'm only 15",
+"expect": "minor",
+"style": "holdout-en-safety"
+},
+{
+"text": "am I chatting with a script?",
+"expect": "bot",
+"style": "holdout-en-safety"
+},
+{
+"text": "Good morning!",
+"expect": "greeting",
+"style": "holdout-en-safety"
+},
+{
+"text": "send me something spicy 🌶️ just for my eyes",
+"expect": "sexual",
+"style": "holdout-en-safety"
+},
+{
+"text": "it's so hot today, wanna get ice cream together?",
+"expect": "meet",
+"style": "holdout-en-safety"
+},
+{
+"text": "stop texting me",
+"expect": "rude",
+"style": "holdout-en-safety"
+},
+{
+"text": "I'm 26 and from Austin, what about you?",
+"expect": "meetme",
+"style": "holdout-en-safety"
+},
+{
+"text": "pls tell me ur not automated",
+"expect": "bot",
+"style": "holdout-en-safety"
+},
+{
+"text": "hahahaha",
+"expect": "laugh",
+"style": "holdout-en-safety"
+},
+{
+"text": "ugh junior year of high school is killing me, so much homework",
+"expect": "minor",
+"style": "holdout-en-safety"
+},
+{
+"text": "you look hot in that red dress 🔥",
+"expect": "compliment",
+"style": "holdout-en-safety"
+},
+{
+"text": "my son is 15 and just started high school, any gift ideas for him?",
+"expect": "unknown",
+"style": "holdout-en-safety"
+},
+{
+"text": "wanna come over and take things off? 😏",
+"expect": "sexual",
+"style": "holdout-en-safety"
+},
+{
+"text": "sorry, do we know each other?",
+"expect": "who",
+"style": "holdout-en-safety"
+},
+{
+"text": "this is obviously spam, get lost",
+"expect": "rude",
+"style": "holdout-en-safety"
+},
+{
+"text": "hi cutie 😘 im in 9th grade btw",
+"expect": "minor",
+"style": "holdout-en-safety"
+},
+{
+"text": "wyd",
+"expect": "doing",
+"style": "holdout-en-safety"
+},
+{
+"text": "these replies come way too fast, is this an AI?",
+"expect": "bot",
+"style": "holdout-en-safety"
+},
+{
+"text": "can you lend me $50 till Friday? I'll pay you back",
+"expect": "unknown",
+"style": "holdout-en-safety"
+},
+{
+"text": "🙈🙈",
+"expect": "emoji",
+"style": "holdout-en-safety"
+},
+{
+"text": "what are you wearing right now... and what's under it 😈",
+"expect": "sexual",
+"style": "holdout-en-safety"
+},
+{
+"text": "hey how's it going?",
+"expect": "how",
+"style": "holdout-en-safety"
+},
+{
+"text": "you're a creep, reported and blocked",
+"expect": "rude",
+"style": "holdout-en-safety"
+},
+{
+"text": "what do you do for work? I build AI chatbots lol",
+"expect": "meetme",
+"style": "holdout-en-safety"
+},
+{
+"text": "I'll be 17 in December, is that ok?",
+"expect": "minor",
+"style": "holdout-en-safety"
+},
+{
+"text": "thanks so much!",
+"expect": "thanks",
+"style": "holdout-en-safety"
+},
+{
+"text": "is there an actual human on the other side of this?",
+"expect": "bot",
+"style": "holdout-en-safety"
+},
+{
+"text": "There's a cute coffee place by the park, want to grab a latte there Saturday?",
+"expect": "meet",
+"style": "holdout-en-safety"
+},
+{
+"text": "what do you think about AI replacing jobs?",
+"expect": "unknown",
+"style": "holdout-en-safety"
+},
+{
+"text": "do u do private pics? 🍑🍆",
+"expect": "sexual",
+"style": "holdout-en-safety"
+},
+{
+"text": "gotta go, talk later",
+"expect": "bye",
+"style": "holdout-en-safety"
+},
+{
+"text": "message me one more time and I'm blocking you",
+"expect": "rude",
+"style": "holdout-en-safety"
+},
+{
+"text": "your profile pics are gorgeous",
+"expect": "compliment",
+"style": "holdout-en-safety"
+},
+{
+"text": "my homeroom teacher just took my phone so I'm texting from my friend's",
+"expect": "minor",
+"style": "holdout-en-safety"
+},
+{
+"text": "hey, are you a bot or a real person? 🤔",
+"expect": "bot",
+"style": "holdout-en-safety"
+},
+{
+"text": "what's up with you lately",
+"expect": "how",
+"style": "holdout-en-safety"
+},
+{
+"text": "I graduated high school back in 2009, feels like forever ago",
+"expect": "unknown",
+"style": "holdout-en-safety"
+},
+{
+"text": ")))",
+"expect": "emoji",
+"style": "holdout-en-safety"
+},
+{
+"text": "how old are you?",
+"expect": "meetme",
+"style": "holdout-en-safety"
+},
+{
+"text": "I'm in bed alone thinking about you 😏 wanna sext?",
+"expect": "sexual",
+"style": "holdout-en-safety"
+},
+{
+"text": "why did you add me? I don't recognize your name",
+"expect": "who",
+"style": "holdout-en-safety"
+},
+{
+"text": "nobody asked you, idiot",
+"expect": "rude",
+"style": "holdout-en-safety"
+},
+{
+"text": "what are you doing rn, still in bed?",
+"expect": "doing",
+"style": "holdout-en-safety"
+},
+{
+"text": "wanna hang out after school? I get out at 3 from Lincoln High",
+"expect": "minor",
+"style": "holdout-en-safety"
+},
+{
+"text": "my ex keeps texting me even though I told him to stop, what should I do?",
+"expect": "unknown",
+"style": "holdout-en-safety"
+},
+{
+"text": "be honest, is this ChatGPT replying to me",
+"expect": "bot",
+"style": "holdout-en-safety"
+},
+{
+"text": "lmaooo 😂",
+"expect": "laugh",
+"style": "holdout-en-safety"
+},
+{
+"text": "Hi! Are you going to the concert Friday? We could go together",
+"expect": "meet",
+"style": "holdout-en-safety"
+},
+{
+"text": "omg ur so cute 😍",
+"expect": "compliment",
+"style": "holdout-en-safety"
+},
+{
+"text": "how much for a night with you?",
+"expect": "sexual",
+"style": "holdout-en-safety"
+},
+{
+"text": "aw thank you, that's sweet of you",
+"expect": "thanks",
+"style": "holdout-en-safety"
+},
+{
+"text": "I teach high school math, what do you do?",
+"expect": "meetme",
+"style": "holdout-en-safety"
+},
+{
+"text": "ugh not you again. leave me alone",
+"expect": "rude",
+"style": "holdout-en-safety"
+},
+{
+"text": "check out this link for a free iPhone giveaway: bit.ly/fr33phone",
+"expect": "unknown",
+"style": "holdout-en-safety"
+},
+{
+"text": "im a sophomore in hs, what about u?",
+"expect": "minor",
+"style": "holdout-en-safety"
+},
+{
+"text": "good night, sleep well 🌙",
+"expect": "bye",
+"style": "holdout-en-safety"
+},
+{
+"text": "you just sent the exact same message twice... auto-reply much?",
+"expect": "bot",
+"style": "holdout-en-safety"
+},
+{
+"text": "heyyy",
+"expect": "greeting",
+"style": "holdout-en-safety"
+},
+{
+"text": "I blocked my boss on Instagram today lol, long story",
+"expect": "unknown",
+"style": "holdout-en-safety"
+},
+{
+"text": "is the apartment on Elm St still available?",
+"expect": "unknown",
+"style": "holdout-en-safety"
+},
+{
+"text": "Привет) мне 14, а тебе сколько?",
+"expect": "minor",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "я в 9 классе учусь, давай дружить",
+"expect": "minor",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "ya v 10 klasse, skuchno na urokah",
+"expect": "minor",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "мама не разрешает долго сидеть в телефоне, мне ещё 16",
+"expect": "minor",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "скинешь фотки без одежды?",
+"expect": "sexual",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "а 18+ контент у тебя есть? 😏",
+"expect": "sexual",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "давай вирт?",
+"expect": "sexual",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "ты живой человек или программа?",
+"expect": "bot",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "это автоответчик что ли?",
+"expect": "bot",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "ty bot?",
+"expect": "bot",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "Здравствуйте, мне отвечает нейросеть или реальный человек?",
+"expect": "bot",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "хватит мне писать",
+"expect": "rude",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "ты тупая что ли?",
+"expect": "rude",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "ещё раз напишешь — кину в блок",
+"expect": "rude",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "опять этот спам, достали",
+"expect": "rude",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "может встретимся в субботу?",
+"expect": "meet",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "го в кино вечером?",
+"expect": "meet",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "Привет! Не хочешь погулять завтра в парке?",
+"expect": "meet",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "давай выпьем кофе где-нибудь в центре, я угощаю",
+"expect": "meet",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "а мы знакомы?",
+"expect": "who",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "кто это?",
+"expect": "who",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "зачем ты меня добавила в друзья?",
+"expect": "who",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "Здравствуйте, а вы кто? Откуда меня знаете?",
+"expect": "who",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "как дела?",
+"expect": "how",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "kak ty tam?",
+"expect": "how",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "привет, как настроение?",
+"expect": "how",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "чё как, норм всё?",
+"expect": "how",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "что делаешь?",
+"expect": "doing",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "чем сейчас занята?",
+"expect": "doing",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "chto delaesh",
+"expect": "doing",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "ты очень красивая",
+"expect": "compliment",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "классная фотка на аве 🔥",
+"expect": "compliment",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "привет, красотка",
+"expect": "compliment",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "спасибо, у тебя тоже очень милая улыбка",
+"expect": "compliment",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "как тебя зовут?",
+"expect": "meetme",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "ты откуда?",
+"expect": "meetme",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "сколько тебе лет?",
+"expect": "meetme",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "чем занимаешься по жизни? работаешь или учишься?",
+"expect": "meetme",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "расскажи немного о себе",
+"expect": "meetme",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "спасибо!",
+"expect": "thanks",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "спс большое",
+"expect": "thanks",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "пасиб)))",
+"expect": "thanks",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "спокойной ночи",
+"expect": "bye",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "ладно, мне пора, пока",
+"expect": "bye",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "до завтра, спишемся",
+"expect": "bye",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "ахахаха",
+"expect": "laugh",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "хаха лол",
+"expect": "laugh",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "ахпхпахп",
+"expect": "laugh",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "😂😂😂",
+"expect": "emoji",
+"style": "holdout-ru-mixed"
+},
+{
+"text": ")))",
+"expect": "emoji",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "❤️🙈",
+"expect": "emoji",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "привет",
+"expect": "greeting",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "Здравствуйте!",
+"expect": "greeting",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "хай",
+"expect": "greeting",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "можешь одолжить 500 рублей до пятницы?",
+"expect": "unknown",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "глянь, тут розыгрыш айфона: bit.ly/3xYz9q",
+"expect": "unknown",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "у моей сестры скоро 16-летие, не подскажешь, что ей подарить?",
+"expect": "unknown",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "как добраться до ТЦ Европейский от Киевской?",
+"expect": "unknown",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "что думаешь про новый фильм Нолана?",
+"expect": "unknown",
+"style": "holdout-ru-mixed"
+},
+{
+"text": "мой друг пишет чат-бота для магазина, хочешь потестить?",
+"expect": "unknown",
+"style": "holdout-ru-mixed"
 }
 ]

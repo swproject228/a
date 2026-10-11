@@ -795,35 +795,44 @@
   // и что на это ответить. Работает по словарю фраз прямо в браузере, без внешних сервисов.
   // Бот отвечает только на короткие «светские» сообщения и не больше dmMax раз за переписку. Всё остальное он
   // передаёт тебе: вопрос «ты бот?» (врать нельзя), 18+, признаки несовершеннолетнего, грубость, приглашение
-  // встретиться и любое сообщение, которое он не понял.
+  // встретиться и любое сообщение, в котором есть что-то кроме вежливости.
   const DM_LABEL = { minor: 'несовершеннолетний', sexual: '18+', bot: '«ты бот?»', rude: 'грубость или «не пиши»',
     meet: 'зовёт встретиться', who: 'кто ты / зачем добавил', how: 'как дела', doing: 'чем занят', compliment: 'комплимент',
     meetme: 'знакомство', thanks: 'спасибо', bye: 'прощание', laugh: 'смех', emoji: 'смайлики', greeting: 'приветствие' };
   const DM_STOP = ['minor', 'sexual', 'bot', 'rude'];                         // никогда не отвечаем сами
+  const DM_HANDOFF = ['meet'];   // приглашения встретиться часто соседствуют с 18+ и подростками: отвечает только человек
   const DM_ORDER = ['meet', 'who', 'how', 'doing', 'compliment', 'meetme', 'thanks', 'bye', 'laugh', 'emoji', 'greeting'];
   const DM_WORDS = {   // '=' в начале: слово целиком; '~': фраза целиком, без продолжения («как ты?», но не «как ты думаешь»);
                        // иначе начало слова. Повторы букв («приииивет») не важны, регистр тоже.
     minor: ['школьни', 'несовершеннолет', 'учусь в школе', 'в школу хожу', 'в школе', 'после уроков', 'контрольная по', 'с уроков',
       'восьмом клас', 'девятом клас', 'десятом клас', 'одинадцатом клас', 'мне тринадцать', 'мне четырнадцать', 'мне пятнадцать',
       'мне шестнадцать', 'мне семнадцать', 'underage', 'high school', 'middle school', 'junior year', 'sophomore year', 'schoolgirl',
-      'schoolboy', 'school tomorrow', 'my mom checks', 'my mom says', "i'm thirteen", "i'm fourteen", "i'm fifteen", "i'm sixteen",
+      'schoolboy', 'school tomorrow', 'after school', 'homeroom', 'my teacher', 'sophomore', 'freshman in', '=hs', 'in hs', 'klas',
+      'urok', 'на уроке', 'уроки', 'мама не разрешает', 'родители не разрешают', 'my mom checks', 'my mom says', "my mom doesn't know",
+      'my mom doesnt know', 'my parents', 'grounded', "i'm thirteen", "i'm fourteen", "i'm fifteen", "i'm sixteen",
       "i'm seventeen", 'im fifteen', 'im sixteen', 'im seventeen'],
     sexual: ['секс', 'интим', 'нюдс', 'обнаж', 'разденеш', 'разденься', 'раздевайся', 'раздеться', 'вирт', 'трах', 'переспим', 'переспать',
       'минет', 'пошлост', 'голая', 'голую', 'голенькая', 'сиськ', 'без одежды', 'хочу тебя', 'ко мне на ночь', 'sext', 'hook up', 'hookup',
       'undress', 'no clothes', 'without clothes', 'without your clothes', 'without the dress', 'take that shirt off', 'take your clothes',
       'take off your', 'something spicy', 'spicy pic', 'send nude', 'nude pic', 'nude photo', '=nudes', '=sex', 'sexy pic', 'naked',
-      'horny', 'fuck me', '=18+'],
+      'horny', 'fuck me', '=18+', '18+ контент', 'take things off', 'take it off', 'take off', "what's under", 'whats under',
+      'what are you wearing', 'what r u wearing', 'what u wearing', 'что на тебе надето', 'private pic', 'private photo', 'for my eyes',
+      'just for me', 'night with you', 'how much for', 'сколько за ночь', 'фотки без', 'фото без', 'горячие фото', 'пикантн', 'в постел',
+      'in bed with', 'thinking about you in', 'spicy'],
     bot: ['ты бот', 'вы бот', '~это бот', '~бот', 'ботяра', 'автоответ', 'ты робот', 'это робот', 'ты живая', 'ты живой', 'живой человек',
       'ты реальн', 'ты настоящ', 'нейронк', 'нейросет', 'are you a bot', 'r u a bot', 'u a bot', 'you a bot', 'is this a bot', '~bot',
       'automated', 'auto reply', 'auto-reply', 'autoreply', 'real person', 'actual person', '~u real', '~you real', '~are you real',
       'r u real', 'talking to an ai', 'talking to ai', 'talking to a bot', 'are you ai', 'are you an ai', 'is this ai', 'bot or human',
-      'human or bot', 'or a bot', 'бот или человек', 'человек или бот', 'chatgpt', '=gpt'],
+      'human or bot', 'or a bot', 'a script', 'actual human', 'real human', 'a human', 'is this an ai', 'an ai?', 'replies come',
+      'reply way too fast', 'replying so fast', 'auto-reply much', 'not automated', 'бот или человек', 'человек или бот', 'скрипт',
+      'автоматически отвеча', 'отвечаешь как робот', 'chatgpt', '=gpt'],
     rude: ['иди нах', 'пошел нах', 'пошла нах', 'отвали', 'отстань', 'отъебись', '=дура', '=дурак', 'дебил', 'тупая', 'тупой', '=сука',
       'спамер', 'спамиш', 'спамит', 'хватит спам', 'это спам', '~спам', 'заебал', 'надоел', 'не пиши', 'хватит писать', 'хватит мне писать',
       'отпишись', 'заблокирую', 'в блок', 'в чс', 'zaebal', 'otvali', 'spamit', 'fuck off', 'stop texting', 'stop messaging', 'stop dming',
       'stop spamming', 'this is spam', '~spam', 'spammer', 'leave me alone', '=idiot', '=stupid', 'go away', "don't text", 'dont text',
       "don't dm", 'dont dm', 'dont ever dm', "don't ever dm", 'never text me', 'annoying', 'blocking you', 'blocking u', 'block you',
-      'block u', '=reported'],
+      'block u', '=reported', 'blowing up my', 'quit blowing', 'nobody wants', '=clown', '=creep', 'get lost', 'nobody asked',
+      'not you again', 'отстаньте', 'достал', 'достала', 'задолбал'],
     meet: ['встретимся', 'встретиться', 'давай встрет', 'увидимся', 'погуляем', 'погулять', 'свидани', 'пойдем в', 'пошли в', 'сходим',
       'приезжай', 'приходи', 'в бар', 'в клуб', 'на кофе', 'в кафе', 'в кино', 'в ресторан', 'на ужин', 'заеду за', 'meet up', 'meet me',
       "let's meet", 'lets meet', 'wanna meet', 'want to meet', 'can we meet', 'hang out', 'lets hang', "let's hang", 'hang at',
@@ -832,17 +841,20 @@
       'come with me', 'pick you up', 'u free', 'are you free', 'you free', 'party at'],
     who: ['мы знакомы', '~ты кто', '~кто ты', '~кто это', 'а вы кто', '~вы кто', 'кто ты такая', 'кто ты такой', 'зачем добавил',
       'зачем ты меня добавил', 'зачем вы добавили', 'почему добавил', 'зачем заявк', 'откуда ты меня', 'who are you', 'who r u',
-      'who are u', 'who is this', 'who dis', 'do i know you', 'do i know u', 'do we know', 'know u from', 'know you from',
+      'who are u', 'who is this', 'who dis', 'do i know you', 'do i know u', 'do we know', 'know each other', 'know u from', 'know you from',
       "why'd u add", "why'd you add", 'why did you add', 'why did u add', 'why u add', 'why you add', 'why did you send',
       'why did u send', 'friend request'],
     how: ['как дела', '~как ты', '~как сам', '~как сама', 'как ты там', 'как жизнь', 'как поживаешь', 'как настроение', 'как твои дела',
       '~как оно', 'как день', 'как прошел день', 'kak dela', 'how are you', 'how r u', 'how are u', 'how u doing', 'how you doing',
       'how you doin', '=hru', "how's it going", 'hows it going', 'how is it going', "how's ur day", 'hows ur day', "how's your day",
-      'hows your day', 'how is your day', 'how was your day', "how's your week", 'hows your week', "how's life", '~whats up',
+      'hows your day', 'how is your day', 'how was your day', "how's your week", 'hows your week', "how's life", 'how u been',
+      'how you been', 'how have you been', '~whats good', "~what's good", "what's up with you", 'whats up with you', 'чё как', 'че как',
+      'kak ty', '~whats up',
       "~what's up", 'wassup', 'wazzup', '=sup'],
     doing: ['что делаешь', '~чем занимаешься', 'чем занимаешься сейчас', 'чем занимаешься щас', 'чем занята', 'чем занят', 'че делаешь', 'чо делаешь', 'что делаеш', 'шо делаешь',
       'что поделываешь', '=чд', 'what are you doing', 'what are u doing', 'what you doing', 'what u doing', 'what u doin', 'wat u doin',
-      'what r u doing', '=wyd', 'what are you up to', 'what you up to', 'what u up to', 'whatcha up to', 'whatcha doing'],
+      'what r u doing', '=wyd', 'what are you up to', 'what you up to', 'what u up to', 'whatcha up to', 'whatcha doing',
+      'whatchu up to', 'whatchu doing', 'chto delaesh', 'cho delaesh', 'чем сейчас занят'],
     compliment: ['красив', 'красотк', 'краса', 'милая', 'милый', 'милаш', 'симпатичн', 'очарователь', 'прекрасн', 'шикарн', 'обалденн',
       'нравишься', 'понравил', 'клевая', 'классная', 'классные фот', 'крутая фот', 'красивые фот', 'лапочк', 'солнышко', 'залип на',
       'улыбк', 'beautiful', '=pretty', '=cute', 'cutie', 'gorgeous', '=hot', 'stunning', '=i like you', 'nice pic', 'nice photo',
@@ -852,13 +864,15 @@
       'как тебя зовут', 'как зовут', 'как твое имя', 'откуда ты', 'а ты откуда', 'где живешь', 'чем увлекаешься', 'расскажи о себе',
       'сколько тебе', 'тебе сколько', 'get to know', "what's your name", 'whats your name', 'whats ur name', "what's ur name",
       'ur name', 'your name', 'where are you from', 'where r u from', 'where u from', 'where do you live', 'where do u live',
-      'where in ls', 'nice to meet', 'tell me about yourself', 'tell me about urself', 'about yourself', 'what do you do',
+      'where in ls', 'nice to meet', 'tell me about yourself', 'tell me about urself', 'about yourself', 'about urself', 'what do you do',
+      'ты откуда', 'о себе', 'учишься или работаешь', 'работаешь или учишься',
       'what do u do', 'for work', 'ur job', 'your job', 'how old', 'what music', 'what kind of music', 'kinda music'],
-    thanks: ['спасиб', 'пасиб', '=спс', 'благодар', '=мерси', 'сенкс', 'spasibo', 'thank', '=thx', '=ty', '=tysm'],
+    thanks: ['спасиб', 'пасиб', '=спс', 'благодар', '=мерси', 'сенкс', 'spasibo', 'thank', '=thx', '=ty', '=tysm', 'appreciate it'],
     bye: ['=пока', 'пока-пока', 'до встречи', 'до завтра', 'до связи', 'спокойной ночи', '=споки', 'сладких снов', 'доброй ночи',
       'всего доброго', 'мне пора', 'спишемся', '=афк', '=бб', '=poka', '=bye', 'goodbye', 'good night', '=gn', 'see you', 'see ya',
-      '=cya', '=gtg', 'got to go', 'gotta go', 'gotta run', 'talk later', 'ttyl', '=bb'],
-    laugh: ['ахах', 'хаха', '=хах', 'ахп', 'хпх', '=лол', '=ржу', '=lol', 'lmao', 'lmfao', 'haha', 'hehe', '=xd'],
+      '=cya', '=gtg', 'got to go', 'gotta go', 'gotta run', 'talk later', 'ttyl', '=bb', 'catch u later', 'catch you later', 'im out',
+      "i'm out", 'sleep well'],
+    laugh: ['ахах', 'хаха', '=хах', 'ахп', 'хпх', '=лол', '=ржу', '=lol', 'lolo', 'lmao', 'lmfao', 'haha', 'hehe', '=xd'],
     greeting: ['привет', 'превет', '=прив', '=приф', 'прифк', 'здравствуй', 'здраствуй', 'здрасьте', 'здрасте', 'здарова', 'дратути', '=хай',
       'хаюшки', 'хелоу', 'хеллоу', 'добрый день', 'добрый вечер', 'доброе утро', 'доброго дня', '=ку', '=куку', '=салют', '=йоу', '=хей',
       'privet', '=hai', '=hi', '=hello', '=hey', 'heya', 'hiya', 'good morning', 'good evening', 'good afternoon', '=yo', 'howdy'],
@@ -877,8 +891,6 @@
       meetme: { flirt: ['Давай 😊 Расскажи о себе', 'С удовольствием) С чего начнём? 😉'], neutral: ['Давай 🙂 Расскажи о себе', 'Можно) Расскажи о себе'] },
       who: { flirt: ['Увидел{|а} твой профиль и решил{|а} добавиться 😊', 'Просто понравился твой профиль 😉'],
         neutral: ['Увидел{|а} твой профиль и решил{|а} добавиться 🙂', 'Просто наткнул{ся|ась} на твой профиль)'] },
-      meet: { flirt: ['Может быть 😏 Давай сначала немного пообщаемся', 'Посмотрим 😉 Напиши чуть позже, договоримся'],
-        neutral: ['Давай чуть позже обсудим 🙂', 'Напиши попозже, договоримся)'] },
       thanks: { flirt: ['Пожалуйста 😊', 'Обращайся 😉'], neutral: ['Пожалуйста 🙂', 'Не за что)'] },
       bye: { flirt: ['Пока 😊', 'До встречи 😉', 'Пока-пока 😊'], neutral: ['Пока 🙂', 'До связи)'] },
       byeNight: { flirt: ['Спокойной ночи 🌙', 'Сладких снов 😊'], neutral: ['Спокойной ночи 🙂'] },
@@ -893,7 +905,6 @@
       compliment: { flirt: ['Aww, thank you 😊', "You're making me blush 🙈"], neutral: ['Thank you 🙂'] },
       meetme: { flirt: ['Sure 😊 Tell me about yourself'], neutral: ['Sure 🙂 Tell me about yourself'] },
       who: { flirt: ['Saw your profile and decided to add you 😊'], neutral: ['Saw your profile and decided to add you 🙂'] },
-      meet: { flirt: ["Maybe 😏 Let's chat a bit first", "We'll see 😉 Text me a bit later"], neutral: ["Let's talk about it later 🙂"] },
       thanks: { flirt: ["You're welcome 😊"], neutral: ['No problem 🙂'] },
       bye: { flirt: ['Bye 😊', 'See you 😉'], neutral: ['Bye 🙂'] },
       byeNight: { flirt: ['Good night 🌙'], neutral: ['Good night 🙂'] },
@@ -913,7 +924,7 @@
     DM_RX[intent] = new RegExp(`(?:^|[^\\p{L}\\p{N}])(?:${alts.join('|')})`, 'u');
     DM_STRIP.push(new RegExp(`(?:^|[^\\p{L}\\p{N}])(?:${alts.join('|')})[\\p{L}\\p{N}']*`, 'gu'));   // для подсчёта «лишних» слов
   }
-  const AGE_MINOR = /(?:^|[^\p{L}\p{N}])(?:мне|mne|я|i'?m|i am|im)\s*(?:only|всего|только|ещё|еще)?\s*(?:[5-9]|1[0-7])(?![\p{N}.,:])(?!\s*(?:мин|час|сек|раз|руб|штук|см|км|кг|\$|min|hour|sec|times|ft|cm|km|kg|mph|[kкh](?![\p{L}])))/u;
+  const AGE_MINOR = /(?:^|[^\p{L}\p{N}])(?:мне|mne|я|i'?m|i am|im|i'?ll be|ill be|turning|будет|исполнится)\s*(?:only|всего|только|ещё|еще)?\s*(?:[5-9]|1[0-7])(?![\p{N}]|[.,:]\p{N})(?!\s*(?:мин|час|сек|раз|руб|штук|см|км|кг|\$|min|hour|sec|times|ft|cm|km|kg|mph|[kкh](?![\p{L}])))/u;
   const GRADE = /(?:^|[^\p{L}\p{N}])(?:в\s*)?(?:[5-9]|1[01])\s*(?:-?(?:м|ом|ый|ой))?\s*клас|(?:^|[^\p{L}\p{N}])(?:[5-9]|1[0-2])(?:th|st|nd|rd)?\s*grade/u;
   // слова, которые не делают сообщение «содержательным»: после них бот ещё может ответить шаблоном
   const FILLER = new Set(('а и но ну да ой эй же ли бы вот так уже ещё еще тут там это то ты тебя тебе тобой я мне меня мы вы вас вам у в на с со по за из к '
@@ -929,6 +940,7 @@
     const found = new Set();
     for (const [intent, re] of Object.entries(DM_RX)) if (re.test(t)) found.add(intent);
     if (AGE_MINOR.test(t) || GRADE.test(t)) found.add('minor');
+    if (/🍆|🍑|💦|👅|😈/u.test(raw)) found.add('sexual');               // такие смайлики почти всегда про 18+
     const bare = raw.replace(/[\s.,!?)(:;*'"-]+/g, '');
     if (!found.size && raw.trim() && !/[\p{L}\p{N}]/u.test(bare)) found.add(/😂|🤣|😆|😹/u.test(raw) ? 'laugh' : 'emoji');
     if (!found.size && /😂|🤣|😆|😹/u.test(raw)) found.add('laugh');
@@ -939,7 +951,7 @@
     const link = /https?:|www\.|\.(?:com|ru|net|org|gg)\b/.test(t);
     const stop = DM_STOP.find((k) => found.has(k));
     const reply = DM_ORDER.find((k) => found.has(k));
-    // на приглашение бот отвечает уклончиво и сразу отдаёт переписку тебе, поэтому подробности («в бар на пирсе завтра») не мешают
+    // приглашение распознаём и с подробностями («в бар на пирсе завтра»): на него всё равно отвечает только человек
     const main = stop || (reply && extra <= (reply === 'meet' ? 8 : 2) && !link ? reply : 'unknown');
     const cyr = /[а-яё]/i.test(raw);
     const lang = cyr || DM_TRANSLIT.test(t) ? 'ru' : (/[a-z]/i.test(raw) ? 'en' : 'ru');
@@ -955,6 +967,7 @@
     const stopper = DM_STOP.includes(d.main) ? d.main : null;
     if (stopper) return out('handoff', { minor: 'похоже на несовершеннолетнего: бот не отвечает', sexual: 'откровенное сообщение: бот не отвечает',
       bot: 'спросили, бот ли это: ответь сам, бот не притворяется человеком', rude: 'грубость или просьба не писать: бот замолкает' }[stopper]);
+    if (DM_HANDOFF.includes(d.main)) return out('handoff', 'зовут встретиться: ответь сам');
     if (conv.n >= o.dmMax) return out('handoff', `бот уже ответил ${conv.n} раз: дальше переписка твоя`);
     const main = d.main;
     if (main === 'unknown') {
@@ -974,7 +987,7 @@
       reply = hello[Math.floor(Math.random() * hello.length)] + ' ' + reply;
     }
     reply = reply.replace(/\{([^|{}]*)\|([^|{}]*)\}/g, (_, m, f) => (o.dmGender === 'm' ? m : f));
-    return out(main === 'meet' ? 'reply-handoff' : 'reply', main === 'meet' ? 'зовут встретиться: ответил уклончиво, дальше ты' : '', reply);
+    return out('reply', '', reply);
   }
   function dmCommit(conv, plan) {
     if (plan.action === 'reply' || plan.action === 'reply-handoff') { conv.n = (conv.n || 0) + 1; conv.used = [...(conv.used || []), plan.reply].slice(-6); }
